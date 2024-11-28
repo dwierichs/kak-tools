@@ -1,4 +1,5 @@
 """This file contains tools for handling DLAs made of Pauli words."""
+
 from collections.abc import Iterable
 from itertools import combinations
 
@@ -6,8 +7,10 @@ import numpy as np
 import rustworkx as rx
 import pennylane as qml
 
+
 def is_int(x):
     return np.isclose(x % 1, 0)
+
 
 def split_pauli_algebra(dla, verbose=False):
     """Split a list of Pauli words that make up a DLA into multiple sublists
@@ -45,7 +48,7 @@ def split_pauli_algebra(dla, verbose=False):
         comps_ops = comps_ops[0]
         dims = dims[0]
     if verbose:
-        plural = 's' * (num_comps > 1)
+        plural = "s" * (num_comps > 1)
         print(f"Found {num_comps} component{plural} with dimension{plural} {dims}.")
 
     return comps_ops
@@ -71,19 +74,21 @@ def get_simple_dim(dla_type, dim):
     elif dla_type == "sp":
         n = (np.sqrt(8 * dim + 1) - 1) / 4
 
-    if b:=is_int(n):
+    if b := is_int(n):
         n = int(np.round(n))
     return b, n
 
+
 _exceptional_dims = {3: ("so", 3), 10: ("so", 5), 15: ("so", 6)}
+
 
 def _identify_component(dim):
     """Non-uniquely identify a connected component of the anticommutation graph of a Lie
     algebra made up of Pauli words. The possible identifications are found by the dimension of
     the component.
     """
-    #if dim == 6:
-        #raise ValueError("Encountered a copy of so(4), which looks simple in the Pauli basis but is not simple. Please handle this manually.")
+    # if dim == 6:
+    # raise ValueError("Encountered a copy of so(4), which looks simple in the Pauli basis but is not simple. Please handle this manually.")
 
     candidates = []
 
@@ -123,11 +128,12 @@ def _identify_component(dim):
 
     return candidates
 
+
 def identify_algebra(comp, verbose=False):
     """Non-uniquely identify a Lie algebra made up of Pauli words by the dimension of the
     connected components of its anticommutation graph.
     """
-    if single_comp:=all(isinstance(el, qml.pauli.PauliWord) for el in comp):
+    if single_comp := all(isinstance(el, qml.pauli.PauliWord) for el in comp):
         components = [comp]
     elif all(
         isinstance(el, Iterable) and all(isinstance(sub_el, qml.pauli.PauliWord) for sub_el in el)
@@ -135,8 +141,9 @@ def identify_algebra(comp, verbose=False):
     ):
         components = comp
     else:
-        raise ValueError(f"Expected a list of iterables of PauliWords, or a single Iterable of PauliWords, but got\n{comp}")
-
+        raise ValueError(
+            f"Expected a list of iterables of PauliWords, or a single Iterable of PauliWords, but got\n{comp}"
+        )
 
     results = []
     for i, component in enumerate(components):
@@ -145,7 +152,9 @@ def identify_algebra(comp, verbose=False):
             print(f"Dimension of component: {dim}.")
         candidates = _identify_component(dim)
         if len(candidates) == 0:
-            raise ValueError(f"Encountered a simple Lie algebra of dimension {dim}, which could not be identified.")
+            raise ValueError(
+                f"Encountered a simple Lie algebra of dimension {dim}, which could not be identified."
+            )
         if verbose:
             print(f"Component {i} can be one of the following:")
             for factor, dla_type, n in candidates:
