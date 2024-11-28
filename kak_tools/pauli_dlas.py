@@ -40,12 +40,13 @@ def split_pauli_algebra(dla, verbose=False):
     # Map the groups of indices to groups of Pauli words
     dims = [len(comp) for comp in comps]
     comps_ops = [{dla[i] for i in comp} for comp in comps]
-    if len(comps) == 1:
+    num_comps = len(comps_ops)
+    if num_comps == 1:
         comps_ops = comps_ops[0]
         dims = dims[0]
     if verbose:
-        plural = 's' * (len(comps_ops)>1)
-        print(f"Found {len(comps_ops)} component{plural} with dimension{plural} {dims}.")
+        plural = 's' * (num_comps > 1)
+        print(f"Found {num_comps} component{plural} with dimension{plural} {dims}.")
 
     return comps_ops
 
@@ -105,7 +106,10 @@ def _identify_component(dim):
             is_sp, n_sp = get_simple_dim("sp", _dim)
             if is_so and np.isclose(n_so % 2, 0):
                 assert not is_sp
-                candidates.append((factor, "so", n_so))
+                # If the answer is so(4), we instead count this as 2 so(3) factors (because so(4)
+                # is not simple), which is redundant with a different iteration of the while loop.
+                if n_so != 4:
+                    candidates.append((factor, "so", n_so))
             elif is_so:
                 assert is_sp and n_sp == (n_so - 1) // 2
                 candidates.extend([(factor, "so", n_so), (factor, "sp", n_sp)])
@@ -135,7 +139,7 @@ def identify_algebra(comp, verbose=False):
 
 
     results = []
-    for component in components:
+    for i, component in enumerate(components):
         dim = len(component)
         if verbose:
             print(f"Dimension of component: {dim}.")
@@ -143,7 +147,7 @@ def identify_algebra(comp, verbose=False):
         if len(candidates) == 0:
             raise ValueError(f"Encountered a simple Lie algebra of dimension {dim}, which could not be identified.")
         if verbose:
-            print(f"It can be one of the following:")
+            print(f"Component {i} can be one of the following:")
             for factor, dla_type, n in candidates:
                 print(f"{factor} copies of " * (factor > 1) + f"{dla_type}({n})")
         results.append(candidates)
