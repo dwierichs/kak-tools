@@ -1,16 +1,32 @@
 """This file contains tools for handling DLAs made of Pauli words."""
 
+import copy
 from collections.abc import Iterable
-from itertools import combinations
+from itertools import combinations, product
+import networkx as nx
 
 import numpy as np
-import rustworkx as rx
 import pennylane as qml
 
 
 def is_int(x):
     return np.isclose(x % 1, 0)
 
+def anticom_graph_pauli(paulis):
+    """Compute the anticommutation graph of a set of Pauli words.
+
+    Args:
+        paulis (List[qml.pauli.PauliWord]): The Pauli words.
+
+    Returns
+        networkx.Graph: The anticommutation graph, which is an undirected, unweighted
+        graph.
+    """
+    assert all(isinstance(p, qml.pauli.PauliWord) for p in paulis)
+    graph = nx.Graph()
+    graph.add_nodes_from(paulis)
+    graph.add_edges_from(((p1, p2) for p1, p2 in combinations(paulis, r=2) if not p1.commutes_with(p2)))
+    return graph
 
 def split_pauli_algebra(dla, verbose=False):
     """Split a list of Pauli words that make up a DLA into multiple sublists
@@ -30,28 +46,18 @@ def split_pauli_algebra(dla, verbose=False):
     """
     assert all(isinstance(op, qml.pauli.PauliWord) for op in dla)
     # Create fully disconnected graph with Pauli words as nodes
-    graph = rx.PyGraph()
-    graph.add_nodes_from(dla)
-
-    # Add all anticommutation relations as edges to the graph
-    for (i, op1), (j, op2) in combinations(enumerate(dla), r=2):
-        if not op1.commutes_with(op2):
-            graph.add_edge(i, j, None)
-
-    # Get connected components of the graph. The components are given as collections of indices
-    comps = rx.connected_components(graph)
-    # Map the groups of indices to groups of Pauli words
-    dims = [len(comp) for comp in comps]
-    comps_ops = [{dla[i] for i in comp} for comp in comps]
-    num_comps = len(comps_ops)
+    graph = anticom_graph_pauli(dla)
+    # Get connected components of the graph. The components are given as collections of nodes
+    comps = list(nx.connected_components(graph))
+    num_comps = len(comps)
     if num_comps == 1:
-        comps_ops = comps_ops[0]
-        dims = dims[0]
+        comps = comps[0]
     if verbose:
+        dims = len(comps) if num_comps == 1 else [len(comp) for comp in comps]
         plural = "s" * (num_comps > 1)
         print(f"Found {num_comps} component{plural} with dimension{plural} {dims}.")
 
-    return comps_ops
+    return comps
 
 
 def get_simple_dim(dla_type, dim):
@@ -165,3 +171,37 @@ def identify_algebra(comp, verbose=False):
         results = results[0]
 
     return results
+
+def lie_closure_pauli_words(generators, verbose=False, max_iterations=10000):
+    """Compute the Lie closure of a list of Pauli words."""
+
+    dla = copy.copy(generators)
+    assert all(isinstance(op, qml.pauli.PauliWord) for op in generators)
+    epoch = 0
+    old_length = 0  # dummy value
+    new_length = len(dla)
+
+    while (new_length > old_length) and (epoch < max_iterations):
+        if verbose:
+            print(f"epoch {epoch+1} of lie_closure, DLA size is {new_length}")
+
+        for pw1, pw2 in product(dla[:new_length], dla[old_length:]):
+            if pw1.commutes_with(pw2):
+                continue
+            com = pw1._matmul(pw2)[0]
+            if com not in dla:
+                dla.append(com)
+
+        # Updated number of linearly independent PauliSentences from previous and current step
+        old_length = new_length
+        new_length = len(dla)
+        epoch += 1
+
+        if epoch == max_iterations:
+            warnings.warn(f"reached the maximum number of iterations {max_iterations}", UserWarning)
+
+    if verbose > 0:
+        print(f"After {epoch} epochs, reached a DLA size of {new_length}")
+
+    return dla
+
