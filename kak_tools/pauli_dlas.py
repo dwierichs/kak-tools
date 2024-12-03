@@ -96,8 +96,10 @@ def _identify_component(dim):
     # if dim == 6:
     # raise ValueError("Encountered a copy of so(4), which looks simple in the Pauli basis but is not simple. Please handle this manually.")
 
-    candidates = []
+    if dim == 1:
+        return [(1, "u", 1)]
 
+    candidates = []
     # Handle possible su(n)
     _dim = dim
     factor = 1
@@ -172,8 +174,20 @@ def identify_algebra(comp, verbose=False):
 
     return results
 
-def lie_closure_pauli_words(generators, verbose=False, max_iterations=10000):
-    """Compute the Lie closure of a list of Pauli words."""
+def lie_closure_pauli_words(generators, verbose=False, max_iterations=10000, full_size=None):
+    """Compute the Lie closure of a list of Pauli words.
+
+    Args:
+        generators (List[qml.pauli.PauliWord]): The generators of the algebra.
+        verbose (bool): Whether to print status updates while closing the set.
+        max_iterations (int): Maximum number of iterations, corresponding to max commutator order
+        full_size (int): Size of the closed algebra. If provided and this number of generators is
+            found, the iteration will be interrupted, to save cost. Note that this means that
+            if the wrong size is provided, the closure might fail.
+
+    Returns:
+        List[qml.pauli.PauliWord]: The elements of the closed Pauli word Lie algebra.
+    """
 
     dla = copy.copy(generators)
     assert all(isinstance(op, qml.pauli.PauliWord) for op in generators)
@@ -199,6 +213,8 @@ def lie_closure_pauli_words(generators, verbose=False, max_iterations=10000):
 
         if epoch == max_iterations:
             warnings.warn(f"reached the maximum number of iterations {max_iterations}", UserWarning)
+        if new_length == full_size:
+            break
 
     if verbose > 0:
         print(f"After {epoch} epochs, reached a DLA size of {new_length}")
