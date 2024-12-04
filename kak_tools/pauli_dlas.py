@@ -87,6 +87,13 @@ def get_simple_dim(dla_type, dim):
 
 _exceptional_dims = {3: ("so", 3), 10: ("so", 5), 15: ("so", 6)}
 
+# This is just for printing something:
+_exceptional_isomorphic = {
+    ("so", 3): " or su(2) or sp(1)",
+    ("so", 5): " or sp(2)",
+    ("so", 6): " or su(4)",
+}
+
 
 def _identify_component(dim):
     """Non-uniquely identify a connected component of the anticommutation graph of a Lie
@@ -99,8 +106,8 @@ def _identify_component(dim):
     if dim == 1:
         return [(1, "u", 1)]
 
+    # Collect 3-tuples with the number of factors, the dla type, and the "n" in the description
     candidates = []
-    # Handle possible su(n)
     _dim = dim
     factor = 1
     while _dim > 2:
@@ -156,17 +163,16 @@ def identify_algebra(comp, verbose=False):
     results = []
     for i, component in enumerate(components):
         dim = len(component)
-        if verbose:
-            print(f"Dimension of component: {dim}.")
         candidates = _identify_component(dim)
         if len(candidates) == 0:
             raise ValueError(
                 f"Encountered a simple Lie algebra of dimension {dim}, which could not be identified."
             )
         if verbose:
-            print(f"Component {i} can be one of the following:")
+            print(f"Component {i} has dimension {dim} and can be one of the following:")
             for factor, dla_type, n in candidates:
-                print(f"{factor} copies of " * (factor > 1) + f"{dla_type}({n})")
+                alt_str = _exceptional_isomorphic.get((dla_type, n), "")
+                print(f"{factor} copies of " * (factor > 1) + f"{dla_type}({n})" + alt_str)
         results.append(candidates)
 
     if single_comp:
