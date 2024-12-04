@@ -353,15 +353,14 @@ def map_simple_to_irrep(ops, horizontal_ops=None, n=None, invol_type=None, invol
     if missing:
         assert missing_ops
         # First completion round
-        prog_state = map_coms(*prog_state, n, invol_type=invol_type)
+        mapping, missing, missing_ops = map_coms(mapping, missing, missing_ops, n, invol_type=invol_type)
 
-        while prog_state[1]:
-            assert prog_state[2]
-            prog_state = map_choice(*prog_state, n, invol_type)
-            prog_state = map_coms(*prog_state, n, invol_type=invol_type)
+        while missing:
+            assert missing_ops
+            mapping, missing, missing_ops = map_choice(mapping, missing, missing_ops, n, invol_type)
+            mapping, missing, missing_ops = map_coms(mapping, missing, missing_ops, n, invol_type=invol_type)
 
 
-    mapping, missing, missing_ops = prog_state
     assert not missing_ops
     assert len(mapping) == len(full_graph)
 
