@@ -82,8 +82,8 @@ def map_horizontal_subgraph(pauli_graph, horizontal_graph):
     to the anticommutation graph of the latter."""
     graph_matcher = nx.algorithms.isomorphism.GraphMatcher(horizontal_graph, pauli_graph)
     mapping = next(graph_matcher.subgraph_isomorphisms_iter())
-    hor_subgraph = horizontal_graph.subgraph(list(mapping)).copy()
-    return mapping, hor_subgraph
+    #hor_subgraph = horizontal_graph.subgraph(list(mapping)).copy()
+    return mapping#, hor_subgraph
 
 def _node_commutator(node1, node2, invol_type):
     if invol_type == "BDI":
@@ -175,18 +175,26 @@ def _node_commutator_sign(node1, node2, invol_type):
 
     raise ValueError
 
-def map_hor_com_hor(mapping, hor_subgraph, invol_type=None):
+def map_hor_com_hor(mapping, pauli_graph, invol_type=None):
     """Extend an initialized mapping from a horizontal subspace to horizontal Pauli
     words by computing all accessible first-order commutators."""
-    #inv_mapping = {val: key for key, val in mapping.items()}
-    edges = list(hor_subgraph.edges())
-    for n1, n2 in edges:
-        com_node = _node_commutator(n1, n2, invol_type)
-        mapping[com_node] = mapping[n1]._commutator(mapping[n2])[0]
-        hor_subgraph.add_node(com_node)
-        single_neighbours = set(hor_subgraph[n1]).symmetric_difference(set(hor_subgraph[n2]))
-        hor_subgraph.add_edges_from([(com_node, n) for n in single_neighbours])
-    return mapping, hor_subgraph
+    inv_mapping = {val: key for key, val in mapping.items()}
+    for p1, p2 in pauli_graph.edges():
+        com_node = _node_commutator(inv_mapping[p1], inv_mapping[p2], invol_type)
+        mapping[com_node] = p1._commutator(p2)[0]
+
+    return mapping
+
+
+
+    #edges = list(hor_subgraph.edges())
+    #for n1, n2 in edges:
+        #com_node = _node_commutator(n1, n2, invol_type)
+        #mapping[com_node] = mapping[n1]._commutator(mapping[n2])[0]
+        #hor_subgraph.add_node(com_node)
+        #single_neighbours = set(hor_subgraph[n1]).symmetric_difference(set(hor_subgraph[n2]))
+        #hor_subgraph.add_edges_from([(com_node, n) for n in single_neighbours])
+    #return mapping, hor_subgraph
 
 def _yield_sorted_ids_no_collision(i, j, n):
     # Iterate from 0 to n-1 and return sorted versions of (i, k), (k, j)
@@ -235,9 +243,36 @@ def anticommuting_nodes(node, n, invol_type):
             yield (0, i, "B", "+")
             yield (0, i, "B", "-")
 
-def map_coms(mapping, missing, missing_ops, hor_subgraph, checked_edges, n, invol_type, n_epochs=10000):
+def map_coms(mapping, missing, missing_ops, n, invol_type):
     """Extend a partial mapping by filling in gaps that are commutators of elements
     that exist already in the mapping."""
+
+    missing_idx = 0
+    last_reset_length = -1
+    while missing:
+        if missing_idx == len(missing):
+            # Reset position, starting a new recursion loop
+            if len(missing) == last_reset_length:
+                # Already reset with missing_idx pointing to the end. No extension seems possible
+                return mapping, missing, missing_ops
+            last_reset_length = len(missing)
+            missing_idx = 0
+
+        node = missing[missing_idx]
+        for n1, n2 in all_pre_commutators(node, n, invol_type):
+            if n1 in mapping and n2 in mapping:
+                com_pw = mapping[n1]._commutator(mapping[n2])[0]
+                mapping[node] = com_pw
+                missing_ops.remove(com_pw)
+                missing.pop(missing_idx)
+                break
+        else:
+            missing_idx += 1
+
+    return mapping, [], []
+
+
+    """
     for _ in range(n_epochs):
         op_added = False
         edges = set(hor_subgraph.edges())
@@ -254,22 +289,23 @@ def map_coms(mapping, missing, missing_ops, hor_subgraph, checked_edges, n, invo
             checked_edges |= {(n1, n2), (n2, n1), (com_node, n1), (n1, com_node), (com_node, n2), (n2, com_node)} # TODO: Make this a graph
         if not op_added:
             break
+    """
 
-    return mapping, missing, missing_ops, hor_subgraph, checked_edges
+    return mapping, missing, missing_ops
 
 
-def map_choice(mapping, missing, missing_ops, hor_subgraph, checked_edges, n, invol_type, full_graph):
-    hor_nodes = set(hor_subgraph.nodes())
-    node = next((0, i) for i in range(1, n) if (0, i) not in hor_nodes)
-    #node, node_idx = choose_generic_first_missing(missing, n, invol_type)
+def map_choice(mapping, missing, missing_ops, n, invol_type):
+    #hor_nodes = set(hor_subgraph.nodes())
+    #node = next((0, i) for i in range(1, n) if (0, i) not in hor_nodes)
+    node, node_idx = choose_generic_first_missing(missing, n, invol_type)
     ac_nodes = anticommuting_nodes(node, n, invol_type)
     for op_idx, op in enumerate(missing_ops):
         if any(op.commutes_with(mapping[ac_node]) for ac_node in ac_nodes if ac_node in mapping):
             continue
         mapping[node] = op
-        #missing.pop(node_idx)
+        missing.pop(node_idx)
         missing_ops.pop(op_idx)
-        return mapping, missing, missing_ops, hor_subgraph, checked_edges
+        return mapping, missing, missing_ops
     raise ValueError("No compatible choice could be made from the missing operators.")
     
 
@@ -306,33 +342,32 @@ def map_simple_to_irrep(ops, horizontal_ops=None, n=None, invol_type=None, invol
 
     full_graph, horizontal_graph = anticom_graph_irrep(n, invol_type, invol_kwargs)
     pauli_graph = anticom_graph_pauli(horizontal_ops)
-    #fig, axs = plt.subplots(2, 1)
-    #nx.draw(pauli_graph, with_labels=True, node_color='red', ax=axs[0])
-    #nx.draw(horizontal_graph, with_labels=False, node_color='blue', ax=axs[1])
 
-    mapping, hor_subgraph = map_horizontal_subgraph(pauli_graph, horizontal_graph)
-    mapping, hor_subgraph = map_hor_com_hor(mapping, hor_subgraph, invol_type=invol_type)
+    mapping = map_horizontal_subgraph(pauli_graph, horizontal_graph)
+    mapping = map_hor_com_hor(mapping, pauli_graph, invol_type=invol_type)
     missing = [node for node in full_graph.nodes() if node not in mapping]
     missing_ops = list(set(ops).difference(set(mapping.values())))
 
-    prog_state = (mapping, missing, missing_ops, hor_subgraph, set())
+    prog_state = (mapping, missing, missing_ops)
 
     if missing:
         assert missing_ops
         # First completion round
         prog_state = map_coms(*prog_state, n, invol_type=invol_type)
 
-        while prog_state[2]:
-            #assert missing_ops
-            prog_state = map_choice(*prog_state, n, invol_type, full_graph)
+        while prog_state[1]:
+            assert prog_state[2]
+            prog_state = map_choice(*prog_state, n, invol_type)
             prog_state = map_coms(*prog_state, n, invol_type=invol_type)
 
 
-    assert not prog_state[2]
+    mapping, missing, missing_ops = prog_state
+    assert not missing_ops
+    assert len(mapping) == len(full_graph)
 
-    signs = make_signs(prog_state[0], n, invol_type)
+    signs = make_signs(mapping, n, invol_type)
 
-    return prog_state[0], signs
+    return mapping, signs
 
 
 def map_irrep_to_matrices(mapping, signs, n, invol_type):
