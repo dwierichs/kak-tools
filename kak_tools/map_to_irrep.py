@@ -3,7 +3,7 @@ import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
 
-from pennylane.pauli import PauliWord
+from pennylane.pauli import PauliWord, PauliSentence
 from .pauli_dlas import anticom_graph_pauli
 
 def _anticom_graph_bdi(n, invol_kwargs):
@@ -317,7 +317,7 @@ def make_signs(mapping, n, invol_type):
                 continue
             node_com_sign = _node_commutator_sign(n1, n2, invol_type)
             com_node = _node_commutator(n1, n2, invol_type)
-            pw_com_sign = mapping[n1]._commutator(mapping[n2])[1] / -2j
+            pw_com_sign = (mapping[n1]._commutator(mapping[n2])[1] / -2j).real
             relative_sign = node_com_sign * pre_sign1 * pre_sign2 / pw_com_sign
             if signs.get(com_node, relative_sign) != relative_sign:
                 raise ValueError("Inconsistency")
@@ -350,15 +350,13 @@ def map_simple_to_irrep(ops, horizontal_ops=None, n=None, invol_type=None, invol
 
     prog_state = (mapping, missing, missing_ops)
 
-    if missing:
-        assert missing_ops
-        # First completion round
-        mapping, missing, missing_ops = map_coms(mapping, missing, missing_ops, n, invol_type=invol_type)
+    # First completion round
+    mapping, missing, missing_ops = map_coms(mapping, missing, missing_ops, n, invol_type=invol_type)
 
-        while missing:
-            assert missing_ops
-            mapping, missing, missing_ops = map_choice(mapping, missing, missing_ops, n, invol_type)
-            mapping, missing, missing_ops = map_coms(mapping, missing, missing_ops, n, invol_type=invol_type)
+    while missing:
+        assert missing_ops
+        mapping, missing, missing_ops = map_choice(mapping, missing, missing_ops, n, invol_type)
+        mapping, missing, missing_ops = map_coms(mapping, missing, missing_ops, n, invol_type=invol_type)
 
 
     assert not missing_ops
@@ -373,12 +371,22 @@ def map_irrep_to_matrices(mapping, signs, n, invol_type):
     return {op: signs[node] * E(node, n, invol_type) for node, op in mapping.items()}
 
 
+def map_matrix_to_reducible(matrix, mapping, signs, invol_type):
+    assert invol_type=="BDI"
+    op = {}
+    for i, j in zip(*np.where(matrix)):
+        if i < j:
+            op[mapping[(i, j)]] = (matrix[i, j] / 2 / signs[(i,j)])
+
+    return PauliSentence(op)
+
+
 def E(node, n, invol_type):
     if invol_type == "BDI":
         e = np.zeros((n, n))
         i, j = node
-        e[i, j] = 1
-        e[j, i] = -1
+        e[i, j] = 2
+        e[j, i] = -2
     if invol_type == "DIII":
         e = np.zeros((n, n))
         i, j, t, s = node
