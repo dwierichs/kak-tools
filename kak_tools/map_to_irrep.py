@@ -7,16 +7,23 @@ from pennylane.pauli import PauliWord, PauliSentence
 from .pauli_dlas import anticom_graph_pauli
 
 def _anticom_graph_bdi(n, invol_kwargs):
+    """Build the anticommutativity graph of our standard basis of so(n) to be used with
+    BDI involutions. If p and q are not n/2 in the involution, they should be provided
+    in the ``invol_kwargs`` for the construction of the horizontal AC graph."""
     assert set(invol_kwargs).issubset({"p", "q"})
-    if n % 2 or invol_kwargs.get("p", None) != invol_kwargs.get("q", None):
-        raise NotImplementedError("BDI currently only is supported with p=q")
+    p = invol_kwargs.get("p", None)
+    q = invol_kwargs.get("q", None)
+    if p is not None:
+        assert q is not None, "If p is provided, q should be as well."
+        assert p + q == n, "If p and q are provided, they have to add up to n."
+
     nodes = list(combinations(range(n), r=2))
-    nodes_hor = list(product(range(n//2), range(n//2, n)))
     graph = nx.Graph()
     graph.add_nodes_from(nodes)
     edges = [(n1, n2) for n1, n2 in combinations(graph.nodes(), r=2) if n1[0] in n2 or n1[1] in n2]
     graph.add_edges_from(edges)
 
+    nodes_hor = list(product(range(p), range(p, n)))
     graph_hor = nx.Graph()
     graph_hor.add_nodes_from(nodes_hor)
     edges_hor = [(n1, n2) for n1, n2 in combinations(graph_hor.nodes(), r=2) if n1[0] in n2 or n1[1] in n2]
