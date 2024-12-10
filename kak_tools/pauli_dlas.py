@@ -12,6 +12,7 @@ import pennylane as qml
 def is_int(x):
     return np.isclose(x % 1, 0)
 
+
 def anticom_graph_pauli(paulis):
     """Compute the anticommutation graph of a set of Pauli words.
 
@@ -25,8 +26,11 @@ def anticom_graph_pauli(paulis):
     assert all(isinstance(p, qml.pauli.PauliWord) for p in paulis)
     graph = nx.Graph()
     graph.add_nodes_from(paulis)
-    graph.add_edges_from(((p1, p2) for p1, p2 in combinations(paulis, r=2) if not p1.commutes_with(p2)))
+    graph.add_edges_from(
+        ((p1, p2) for p1, p2 in combinations(paulis, r=2) if not p1.commutes_with(p2))
+    )
     return graph
+
 
 def split_pauli_algebra(dla, verbose=False):
     """Split a list of Pauli words that make up a DLA into multiple sublists
@@ -180,6 +184,7 @@ def identify_algebra(comp, verbose=False):
 
     return results
 
+
 def lie_closure_pauli_words(generators, verbose=False, max_iterations=10000, full_size=None):
     """Compute the Lie closure of a list of Pauli words.
 
@@ -226,4 +231,3 @@ def lie_closure_pauli_words(generators, verbose=False, max_iterations=10000, ful
         print(f"After {epoch} epochs, reached a DLA size of {new_length}")
 
     return dla
-

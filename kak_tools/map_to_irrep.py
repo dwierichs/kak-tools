@@ -6,6 +6,7 @@ import matplotlib.pyplot as plt
 from pennylane.pauli import PauliWord, PauliSentence
 from .pauli_dlas import anticom_graph_pauli
 
+
 def _anticom_graph_bdi(n, invol_kwargs):
     """Build the anticommutativity graph of our standard basis of so(n) to be used with
     BDI involutions. If p and q are not n/2 in the involution, they should be provided
@@ -26,16 +27,24 @@ def _anticom_graph_bdi(n, invol_kwargs):
     nodes_hor = list(product(range(p), range(p, n)))
     graph_hor = nx.Graph()
     graph_hor.add_nodes_from(nodes_hor)
-    edges_hor = [(n1, n2) for n1, n2 in combinations(graph_hor.nodes(), r=2) if n1[0] in n2 or n1[1] in n2]
+    edges_hor = [
+        (n1, n2) for n1, n2 in combinations(graph_hor.nodes(), r=2) if n1[0] in n2 or n1[1] in n2
+    ]
     graph_hor.add_edges_from(edges_hor)
     return graph, graph_hor
+
 
 def _anticom_graph_diii(n, invol_kwargs):
     assert n % 2 == 0
     assert set(invol_kwargs) == set()
     m = n // 2
     # See encoding description somewhere else
-    nodes = [(i, j, _type, sign) for _type in "AB" for sign in "+-" for i, j in combinations(range(m), r=2)]
+    nodes = [
+        (i, j, _type, sign)
+        for _type in "AB"
+        for sign in "+-"
+        for i, j in combinations(range(m), r=2)
+    ]
     nodes_hor = [(i, j, _type, "-") for _type in "AB" for i, j in combinations(range(m), r=2)]
 
     graph = nx.Graph()
@@ -45,16 +54,19 @@ def _anticom_graph_diii(n, invol_kwargs):
 
     graph_hor = nx.Graph()
     graph_hor.add_nodes_from(nodes_hor)
-    edges_hor = [(n1, n2) for n1, n2 in combinations(graph_hor.nodes(), r=2) if n1[0] in n2 or n1[1] in n2]
+    edges_hor = [
+        (n1, n2) for n1, n2 in combinations(graph_hor.nodes(), r=2) if n1[0] in n2 or n1[1] in n2
+    ]
     graph_hor.add_edges_from(edges_hor)
     return graph, graph_hor
+
 
 def _anticom_graph_aiii(n, invol_kwargs):
     assert set(invol_kwargs).issubset({"p", "q"})
     if n % 2 or invol_kwargs.get("p", None) != invol_kwargs.get("q", None):
         raise NotImplementedError("BDI currently only is supported with p=q")
     m = n // 2
-    nodes = [(i, j, t) for t in "XYZ" for i, j in combinations(range(m), r=2) if t!=Z or i==j]
+    nodes = [(i, j, t) for t in "XYZ" for i, j in combinations(range(m), r=2) if t != Z or i == j]
     nodes_hor = [(i, j, t) for t in "XY" for i, j in product(range(m), range(m, n))]
 
     graph = nx.Graph()
@@ -64,9 +76,12 @@ def _anticom_graph_aiii(n, invol_kwargs):
 
     graph_hor = nx.Graph()
     graph_hor.add_nodes_from(nodes_hor)
-    edges_hor = [(n1, n2) for n1, n2 in combinations(graph_hor.nodes(), r=2) if n1[0] in n2 or n1[1] in n2]
+    edges_hor = [
+        (n1, n2) for n1, n2 in combinations(graph_hor.nodes(), r=2) if n1[0] in n2 or n1[1] in n2
+    ]
     graph_hor.add_edges_from(edges_hor)
     return graph, graph_hor
+
 
 def anticom_graph_irrep(n, invol_type=None, invol_kwargs=None):
     """Create an anticommutation graph for an irrep of a simple algebra,
@@ -83,14 +98,16 @@ def anticom_graph_irrep(n, invol_type=None, invol_kwargs=None):
 
     NotImplementedError("Only BDI, DIII and AIII are implemented.")
 
+
 def map_horizontal_subgraph(pauli_graph, horizontal_graph):
     """Initiate a mapping between irrep elements and Pauli words by identifying
     a subgraph in the horizontal anticommutation graph of the former that is isomorphic
     to the anticommutation graph of the latter."""
     graph_matcher = nx.algorithms.isomorphism.GraphMatcher(horizontal_graph, pauli_graph)
     mapping = next(graph_matcher.subgraph_isomorphisms_iter())
-    #hor_subgraph = horizontal_graph.subgraph(list(mapping)).copy()
-    return mapping#, hor_subgraph
+    # hor_subgraph = horizontal_graph.subgraph(list(mapping)).copy()
+    return mapping  # , hor_subgraph
+
 
 def _node_commutator(node1, node2, invol_type):
     if invol_type == "BDI":
@@ -125,6 +142,7 @@ def _node_commutator(node1, node2, invol_type):
     """
     raise ValueError
 
+
 def _node_commutator_sign_bdi(node1, node2):
     if node1[0] == node2[0]:
         if node1[1] < node2[1]:
@@ -143,6 +161,7 @@ def _node_commutator_sign_bdi(node1, node2):
             return 1
         return -1
     raise ValueError
+
 
 def _node_commutator_sign_diii(node1, node2):
     i, j, t1, s1 = node1
@@ -174,6 +193,7 @@ def _node_commutator_sign_diii(node1, node2):
         return -1 * _node_commutator_sign_diii(node2, node1)
     raise ValueError
 
+
 def _node_commutator_sign(node1, node2, invol_type):
     if invol_type == "BDI":
         return _node_commutator_sign_bdi(node1, node2)
@@ -181,6 +201,7 @@ def _node_commutator_sign(node1, node2, invol_type):
         return _node_commutator_sign_diii(node1, node2)
 
     raise ValueError
+
 
 def map_hor_com_hor(mapping, pauli_graph, invol_type=None):
     """Extend an initialized mapping from a horizontal subspace to horizontal Pauli
@@ -193,23 +214,13 @@ def map_hor_com_hor(mapping, pauli_graph, invol_type=None):
     return mapping
 
 
-
-    #edges = list(hor_subgraph.edges())
-    #for n1, n2 in edges:
-        #com_node = _node_commutator(n1, n2, invol_type)
-        #mapping[com_node] = mapping[n1]._commutator(mapping[n2])[0]
-        #hor_subgraph.add_node(com_node)
-        #single_neighbours = set(hor_subgraph[n1]).symmetric_difference(set(hor_subgraph[n2]))
-        #hor_subgraph.add_edges_from([(com_node, n) for n in single_neighbours])
-    #return mapping, hor_subgraph
-
 def _yield_sorted_ids_no_collision(i, j, n):
     # Iterate from 0 to n-1 and return sorted versions of (i, k), (k, j)
     for k in range(i):
         yield (k, i), (k, j)
-    for k in range(i+1, j):
+    for k in range(i + 1, j):
         yield (i, k), (k, j)
-    for k in range(j+1, n):
+    for k in range(j + 1, n):
         yield (i, k), (j, k)
 
 
@@ -239,6 +250,7 @@ def choose_generic_first_missing(missing, n, invol_type):
         assert cand[3] == "+"
         return cand, 0
 
+
 def anticommuting_nodes(node, n, invol_type):
     if invol_type == "BDI":
         for i in range(1, n):
@@ -249,6 +261,7 @@ def anticommuting_nodes(node, n, invol_type):
             yield (0, i, "A", "-")
             yield (0, i, "B", "+")
             yield (0, i, "B", "-")
+
 
 def map_coms(mapping, missing, missing_ops, n, invol_type):
     """Extend a partial mapping by filling in gaps that are commutators of elements
@@ -278,7 +291,6 @@ def map_coms(mapping, missing, missing_ops, n, invol_type):
 
     return mapping, [], []
 
-
     """
     for _ in range(n_epochs):
         op_added = False
@@ -302,8 +314,8 @@ def map_coms(mapping, missing, missing_ops, n, invol_type):
 
 
 def map_choice(mapping, missing, missing_ops, n, invol_type):
-    #hor_nodes = set(hor_subgraph.nodes())
-    #node = next((0, i) for i in range(1, n) if (0, i) not in hor_nodes)
+    # hor_nodes = set(hor_subgraph.nodes())
+    # node = next((0, i) for i in range(1, n) if (0, i) not in hor_nodes)
     node, node_idx = choose_generic_first_missing(missing, n, invol_type)
     ac_nodes = anticommuting_nodes(node, n, invol_type)
     for op_idx, op in enumerate(missing_ops):
@@ -314,7 +326,7 @@ def map_choice(mapping, missing, missing_ops, n, invol_type):
         missing_ops.pop(op_idx)
         return mapping, missing, missing_ops
     raise ValueError("No compatible choice could be made from the missing operators.")
-    
+
 
 def make_signs(mapping, n, invol_type):
     signs = {(0, i): 1 for i in range(1, n)}
@@ -330,7 +342,7 @@ def make_signs(mapping, n, invol_type):
                 raise ValueError("Inconsistency")
             signs[com_node] = relative_sign
     return signs
-            
+
 
 def map_simple_to_irrep(ops, horizontal_ops=None, n=None, invol_type=None, invol_kwargs=None):
     """Map a list of Pauli words that is guaranteed to form a simple Lie algebra of type
@@ -358,13 +370,16 @@ def map_simple_to_irrep(ops, horizontal_ops=None, n=None, invol_type=None, invol
     prog_state = (mapping, missing, missing_ops)
 
     # First completion round
-    mapping, missing, missing_ops = map_coms(mapping, missing, missing_ops, n, invol_type=invol_type)
+    mapping, missing, missing_ops = map_coms(
+        mapping, missing, missing_ops, n, invol_type=invol_type
+    )
 
     while missing:
         assert missing_ops
         mapping, missing, missing_ops = map_choice(mapping, missing, missing_ops, n, invol_type)
-        mapping, missing, missing_ops = map_coms(mapping, missing, missing_ops, n, invol_type=invol_type)
-
+        mapping, missing, missing_ops = map_coms(
+            mapping, missing, missing_ops, n, invol_type=invol_type
+        )
 
     assert not missing_ops
     assert len(mapping) == len(full_graph)
@@ -379,11 +394,11 @@ def map_irrep_to_matrices(mapping, signs, n, invol_type):
 
 
 def map_matrix_to_reducible(matrix, mapping, signs, invol_type):
-    assert invol_type=="BDI"
+    assert invol_type == "BDI"
     op = {}
     for i, j in zip(*np.where(matrix)):
         if i < j:
-            op[mapping[(i, j)]] = (matrix[i, j] / 2 / signs[(i,j)])
+            op[mapping[(i, j)]] = matrix[i, j] / 2 / signs[(i, j)]
 
     return PauliSentence(op)
 
@@ -397,17 +412,17 @@ def E(node, n, invol_type):
     if invol_type == "DIII":
         e = np.zeros((n, n))
         i, j, t, s = node
-        sign = 1 if s=="+" else -1
+        sign = 1 if s == "+" else -1
         if t == "A":
             e[i, j] = 1
             e[j, i] = -1
-            e[i + n//2, j + n//2] = sign
-            e[j + n//2, i + n//2] = -sign
+            e[i + n // 2, j + n // 2] = sign
+            e[j + n // 2, i + n // 2] = -sign
         if t == "B":
-            e[i, j + n//2] = 1
-            e[j + n//2, i] = -1
-            e[j, i + n//2] = sign
-            e[i + n//2, j] = -sign
+            e[i, j + n // 2] = 1
+            e[j + n // 2, i] = -1
+            e[j, i + n // 2] = sign
+            e[i + n // 2, j] = -sign
 
     if invol_type == "AIII":
         e = np.zeros((n, n))
@@ -419,6 +434,6 @@ def E(node, n, invol_type):
             e[j, i] = -1
         if t == "Z":
             e[i, i] = 1
-            e[i+1, i+1] = -1
+            e[i + 1, i + 1] = -1
 
     return e
