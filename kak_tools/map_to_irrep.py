@@ -18,14 +18,14 @@ def _anticom_graph_bdi(n, invol_kwargs):
         assert q is not None, "If p is provided, q should be as well."
         assert p + q == n, "If p and q are provided, they have to add up to n."
 
-    #edges = [((i, j), (i, l)) for i in range(n) for j in range(i+1, n) for l in range(j+1, n)]
-    #edges += [((i, j), (k, i)) for i in range(n) for j in range(i+1, n) for k in range(i)]
-    #edges += [((i, j), (j, l)) for i in range(n) for j in range(i+1, n) for l in range(j+1, n)]
-    #edges += [((i, j), (k, j)) for i in range(n) for j in range(i+1, n) for k in range(j)]
-    #edges = {(i, j): ([(i, l) for l in range(j+1, n)] + [(k, i) for k in range(i)] + [(j, l) for l in range(j+1, n)] + [(k, j) for k in range(j)]) for i, j in combinations(range(n),r=2)}
-    #graph = nx.Graph(edges)
-    edges_hor = [((i, j), (i, l)) for i in range(p) for j in range(p, n) for l in range(j+1, n)]
-    edges_hor += [((i, j), (k, j)) for i in range(p) for j in range(p, n) for k in range(i+1, p)]
+    # edges = [((i, j), (i, l)) for i in range(n) for j in range(i+1, n) for l in range(j+1, n)]
+    # edges += [((i, j), (k, i)) for i in range(n) for j in range(i+1, n) for k in range(i)]
+    # edges += [((i, j), (j, l)) for i in range(n) for j in range(i+1, n) for l in range(j+1, n)]
+    # edges += [((i, j), (k, j)) for i in range(n) for j in range(i+1, n) for k in range(j)]
+    # edges = {(i, j): ([(i, l) for l in range(j+1, n)] + [(k, i) for k in range(i)] + [(j, l) for l in range(j+1, n)] + [(k, j) for k in range(j)]) for i, j in combinations(range(n),r=2)}
+    # graph = nx.Graph(edges)
+    edges_hor = [((i, j), (i, l)) for i in range(p) for j in range(p, n) for l in range(j + 1, n)]
+    edges_hor += [((i, j), (k, j)) for i in range(p) for j in range(p, n) for k in range(i + 1, p)]
     horizontal_graph = nx.Graph(edges_hor)
     return horizontal_graph
 
@@ -357,7 +357,10 @@ def map_simple_to_irrep(ops, horizontal_ops=None, n=None, invol_type=None, invol
         # operators, rather than just the operators.
         mapping = horizontal_ops
         pauli_graph = anticom_graph_pauli(mapping.values())
-        assert all(isinstance(key, tuple) and len(key) == 2 and isinstance(op, PauliWord) for key, op in horizontal_ops.items())
+        assert all(
+            isinstance(key, tuple) and len(key) == 2 and isinstance(op, PauliWord)
+            for key, op in horizontal_ops.items()
+        )
     else:
         assert all(isinstance(op, PauliWord) for op in horizontal_ops)
 
