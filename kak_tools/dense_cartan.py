@@ -170,7 +170,7 @@ def group_matrix_to_reducible(matrix, mapping, signs, invol_type):
     for i, j in zip(*np.where(matrix)):
         if i < j:
             assert i not in seen_ids and j not in seen_ids
-            assert np.isclose((sign := np.sign(matrix[i, i])), np.sign(matrix[j, j]))
+            assert np.isclose((sign := np.sign(matrix[i, i])), np.sign(matrix[j, j])), f"{matrix[i, i]}, {matrix[j, j]}"
             angle = np.arcsin(matrix[i, j])
             assert angle.dtype == np.float64
             if sign < 0:
@@ -182,7 +182,7 @@ def group_matrix_to_reducible(matrix, mapping, signs, invol_type):
 
 
 def map_recursive_decomp_to_reducible(
-    recursive_decomp, mapping, signs, invol_type, time=None, assertions=False
+    recursive_decomp, mapping, signs, invol_type, time=None, tol=1e-8, assertions=False
 ):
     """Map the result of recursive_bdi back to a series of Pauli rotations in the reducible
     representation specified by mapping & signs.
@@ -205,7 +205,8 @@ def map_recursive_decomp_to_reducible(
         if t == "a0":
             if time is not None:
                 ps = ps / time
-        ps.simplify()
+        if tol is not None:
+            ps.simplify(tol=tol)
         pauli_decomp.extend(((pw, coeff, t) for pw, coeff in ps.items()))
 
         # Assertions to check some properties. Not required for the actual computation

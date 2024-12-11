@@ -18,20 +18,16 @@ def _anticom_graph_bdi(n, invol_kwargs):
         assert q is not None, "If p is provided, q should be as well."
         assert p + q == n, "If p and q are provided, they have to add up to n."
 
-    nodes = list(combinations(range(n), r=2))
-    graph = nx.Graph()
-    graph.add_nodes_from(nodes)
-    edges = [(n1, n2) for n1, n2 in combinations(graph.nodes(), r=2) if n1[0] in n2 or n1[1] in n2]
-    graph.add_edges_from(edges)
-
-    nodes_hor = list(product(range(p), range(p, n)))
-    graph_hor = nx.Graph()
-    graph_hor.add_nodes_from(nodes_hor)
-    edges_hor = [
-        (n1, n2) for n1, n2 in combinations(graph_hor.nodes(), r=2) if n1[0] in n2 or n1[1] in n2
-    ]
-    graph_hor.add_edges_from(edges_hor)
-    return graph, graph_hor
+    #edges = [((i, j), (i, l)) for i in range(n) for j in range(i+1, n) for l in range(j+1, n)]
+    #edges += [((i, j), (k, i)) for i in range(n) for j in range(i+1, n) for k in range(i)]
+    #edges += [((i, j), (j, l)) for i in range(n) for j in range(i+1, n) for l in range(j+1, n)]
+    #edges += [((i, j), (k, j)) for i in range(n) for j in range(i+1, n) for k in range(j)]
+    #edges = {(i, j): ([(i, l) for l in range(j+1, n)] + [(k, i) for k in range(i)] + [(j, l) for l in range(j+1, n)] + [(k, j) for k in range(j)]) for i, j in combinations(range(n),r=2)}
+    #graph = nx.Graph(edges)
+    edges_hor = [((i, j), (i, l)) for i in range(p) for j in range(p, n) for l in range(j+1, n)]
+    edges_hor += [((i, j), (k, j)) for i in range(p) for j in range(p, n) for k in range(i+1, p)]
+    horizontal_graph = nx.Graph(edges_hor)
+    return horizontal_graph
 
 
 def _anticom_graph_diii(n, invol_kwargs):
@@ -105,8 +101,7 @@ def map_horizontal_subgraph(pauli_graph, horizontal_graph):
     to the anticommutation graph of the latter."""
     graph_matcher = nx.algorithms.isomorphism.GraphMatcher(horizontal_graph, pauli_graph)
     mapping = next(graph_matcher.subgraph_isomorphisms_iter())
-    # hor_subgraph = horizontal_graph.subgraph(list(mapping)).copy()
-    return mapping  # , hor_subgraph
+    return mapping
 
 
 def _node_commutator(node1, node2, invol_type):
@@ -348,10 +343,6 @@ def map_simple_to_irrep(ops, horizontal_ops=None, n=None, invol_type=None, invol
     """Map a list of Pauli words that is guaranteed to form a simple Lie algebra of type
     ``dla_type`` to the elements in an irreducible representation of the algebra."""
     assert all(isinstance(op, PauliWord) for op in ops)
-    if horizontal_ops is None:
-        raise NotImplementedError("This is the simpler scenario, but it is not implemented yet.")
-    assert all(isinstance(op, PauliWord) for op in horizontal_ops)
-
     assert isinstance(n, int)
     assert invol_type in {"AI", "AII", "AIII", "BDI", "CI", "CII", "DIII"}
     if invol_type in {"AII", "DIII"}:
@@ -359,12 +350,27 @@ def map_simple_to_irrep(ops, horizontal_ops=None, n=None, invol_type=None, invol
     if invol_kwargs is None:
         invol_kwargs = {}
 
-    full_graph, horizontal_graph = anticom_graph_irrep(n, invol_type, invol_kwargs)
-    pauli_graph = anticom_graph_pauli(horizontal_ops)
+    if horizontal_ops is None:
+        raise NotImplementedError("This is the simpler scenario, but it is not implemented yet.")
+    if isinstance(horizontal_ops, dict):
+        # If a dictionary is passed, assume that it already contains a mapping for the horizontal
+        # operators, rather than just the operators.
+        mapping = horizontal_ops
+        pauli_graph = anticom_graph_pauli(mapping.values())
+        assert all(isinstance(key, tuple) and len(key) == 2 and isinstance(op, PauliWord) for key, op in horizontal_ops.items())
+    else:
+        assert all(isinstance(op, PauliWord) for op in horizontal_ops)
 
-    mapping = map_horizontal_subgraph(pauli_graph, horizontal_graph)
+        horizontal_graph = anticom_graph_irrep(n, invol_type, invol_kwargs)
+        pauli_graph = anticom_graph_pauli(horizontal_ops)
+
+        mapping = map_horizontal_subgraph(pauli_graph, horizontal_graph)
+
+    # This is BDI specific for now.
+    all_nodes = list(combinations(range(n), r=2))
+
     mapping = map_hor_com_hor(mapping, pauli_graph, invol_type=invol_type)
-    missing = [node for node in full_graph.nodes() if node not in mapping]
+    missing = [node for node in all_nodes if node not in mapping]
     missing_ops = list(set(ops).difference(set(mapping.values())))
 
     prog_state = (mapping, missing, missing_ops)
@@ -382,7 +388,7 @@ def map_simple_to_irrep(ops, horizontal_ops=None, n=None, invol_type=None, invol
         )
 
     assert not missing_ops
-    assert len(mapping) == len(full_graph)
+    assert len(mapping) == len(all_nodes)
 
     signs = make_signs(mapping, n, invol_type)
 
