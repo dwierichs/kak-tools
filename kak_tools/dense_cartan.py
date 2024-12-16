@@ -101,6 +101,8 @@ def recursive_bdi(U, n, num_iter=None):
             if _type.startswith("a") or _n <= 4:
                 # CSA element
                 new_ops.append((op, start, end, _type))
+                if _type == "a0":
+                    break
                 continue
             _q = _n // 2
             _p = _n - _q
@@ -117,6 +119,7 @@ def recursive_bdi(U, n, num_iter=None):
                     ]
                 )
             decomposed_something = True
+        new_ops.extend(((op.T, start, end, _type) for op, start, end, _type in new_ops[:-1][::-1]))
         _iter += 1
         ops[_iter] = new_ops
         if _iter == num_iter:
@@ -161,7 +164,7 @@ def group_matrix_to_reducible(matrix, mapping, signs, invol_type):
 """
 
 
-def group_matrix_to_reducible(matrix, mapping, signs, invol_type):
+def group_matrix_to_reducible(matrix, start, mapping, signs, invol_type):
     """Map a (SO(n)) group element composed of commuting Given's rotations
     into commuting Pauli rotations on the reducible representation given by mapping & signs."""
     assert invol_type == "BDI"
@@ -170,12 +173,14 @@ def group_matrix_to_reducible(matrix, mapping, signs, invol_type):
     for i, j in zip(*np.where(matrix)):
         if i < j:
             assert i not in seen_ids and j not in seen_ids
-            assert np.isclose((sign := np.sign(matrix[i, i])), np.sign(matrix[j, j])), f"{matrix[i, i]}, {matrix[j, j]}"
+            m_ii = matrix[i, i]
+            m_jj = matrix[j, j]
+            assert np.isclose((sign := np.sign(m_ii)), np.sign(m_jj)) or np.allclose([m_ii, m_jj], 0.), f"{m_ii}, {m_jj}"
             angle = np.arcsin(matrix[i, j])
             assert angle.dtype == np.float64
             if sign < 0:
                 angle = np.pi - angle
-            op[mapping[(i, j)]] = angle / 2 / signs[(i, j)]
+            op[mapping[(start + i, start + j)]] = angle / 2 / signs[(start + i, start + j)]
             seen_ids |= {i, j}
 
     return PauliSentence(op)
@@ -201,7 +206,7 @@ def map_recursive_decomp_to_reducible(
         inv_mapping = {val: key for key, val in mapping.items()}
     n = max([k[1] for k in mapping]) + 1
     for mat, s, e, t in decomp:
-        ps = group_matrix_to_reducible(embed(mat, s, e, n), mapping, signs, invol_type)
+        ps = group_matrix_to_reducible(mat, s, mapping, signs, invol_type)
         if t == "a0":
             if time is not None:
                 ps = ps / time
