@@ -324,7 +324,8 @@ def map_choice(mapping, missing, missing_ops, n, invol_type):
 def make_signs(mapping, n, invol_type):
     assert invol_type=="BDI"
     assert len(mapping) == (n**2 - n) // 2
-    signs = {(0, i): (-1)**(i>n//2) for i in range(1, n)}
+    signs = {(0, i): 1 for i in range(1, n)}
+    signs[(0, n//2)] = -1
     while len(signs) < len(mapping):
         for (n1, pre_sign1), (n2, pre_sign2) in combinations(signs.items(), r=2):
             if not (n1[0] in n2 or n1[1] in n2):
