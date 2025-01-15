@@ -71,6 +71,8 @@ def ai_kak(u, verify=0):
         o[:, inds] = gram_schmidt(o[:, inds].real)
         
     d = np.diag(np.sqrt(evals))
+    if np.linalg.det(o) < 0:
+        o[:, 0] *= -1
 
     if verify:
 

@@ -475,12 +475,15 @@ def make_so_2n_horizontal_mapping(n):
     mapping |= {(i, i+n-1): PauliWord({i-1: "Y", i: "Y"}) for i in range(1, n)}
     return mapping
 
-def make_so_2n_full_mapping(n):
+
+def make_so_2n_full_mapping(n, xy_symmetric=False):
     """Create a default reducible-to-irreducible mapping for all operators of so(2n) implemented
     by the transverse field XY model. The irrep is compatible with a BDI decomposition and
     the Hamiltonian terms (XX coupling, YY coupling, Z field) to be horizontal. In particular
     the mapping created by `make_so_2n_horizontal_mapping` is contained in the mapping created
     here."""
+    if xy_symmetric:
+        return _so_2n_full_mapping_xy(n)
     mapping = {}
     for i in range(n-1):
         # upper left triangle
@@ -494,3 +497,4 @@ def make_so_2n_full_mapping(n):
     # diagonal of off-diagonal
     mapping |= {(i, n+i): PauliWord({i:"Z"}) for i in range(n)}
     return mapping
+

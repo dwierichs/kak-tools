@@ -15,3 +15,4 @@ from .dense_cartan import (
     group_matrix_to_reducible,
     map_recursive_decomp_to_reducible,
 )
+from .ai import ai_kak

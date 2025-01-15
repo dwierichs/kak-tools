@@ -86,10 +86,10 @@ def embed(op, start, end, n):
     return mat
 
 
-def recursive_bdi(U, n, num_iter=None):
+def recursive_bdi(U, n, num_iter=None, first_is_horizontal=True):
     q = n // 2
     p = n - q
-    k1, a, k2 = bdi(U, p, q, is_horizontal=True)
+    k1, a, k2 = bdi(U, p, q, is_horizontal=first_is_horizontal)
     ops = {-1: [(U, 0, n, None)], 0: [(k1, 0, n, "k1"), (a, 0, n, "a0"), (k2, 0, n, "k2")]}
     _iter = 0
     decomposed_something = True
@@ -126,35 +126,6 @@ def recursive_bdi(U, n, num_iter=None):
             break
 
     return ops
-
-    if num_iter is None:
-        num_iter = int(np.round(np.log2(n))) - 2
-
-    p = q = n // 2
-    k1, a, k2 = bdi(U, p, q, is_horizontal=True)
-    ops = {-1: [(U, 0, n, None)], 0: [(k1, 0, n, "k"), (a, 0, n, "a0"), (k2, 0, n, "k")]}
-    for i in range(1, num_iter + 1):
-        p = q = p // 2
-        new_ops = []
-        for k, (op, start, end, _type) in enumerate(ops[i - 1]):
-            if _type.startswith("a"):
-                # CSA element
-                new_ops.append((op, start, end, _type))
-                continue
-            width = end - start
-            assert width % 2 == 0
-            for s, e in [(0, width // 2), (width // 2, width)]:
-                k1, a, k2 = bdi(op[s:e, s:e], p, q, is_horizontal=False)
-                new_ops.extend(
-                    [
-                        (k1, start + s, start + e, "k"),
-                        (a, start + s, start + e, "a"),
-                        (k2, start + s, start + e, "k"),
-                    ]
-                )
-        ops[i] = new_ops
-    return ops
-
 
 """
 def group_matrix_to_reducible(matrix, mapping, signs, invol_type):
