@@ -27,25 +27,23 @@ def bdi(u, p, q, is_horizontal=True, validate=True):
     if validate:
         assert u.shape == (p + q, p + q)
     # Note that the argument p of cossin is the same as for this function, but q *is not the same*.
-    k1, a, k2 = cossin(u, p=p, q=p, swap_sign=True)
+    (k11, k12), theta, (k21, k22) = cossin(u, p=p, q=p, swap_sign=True, separate=True)
     if p > q:
         # For unequal p and q, scipy puts the identity matrix in a at the start of the larger
         # block, while we chose to always have it between the non-identity cos blocks. For p>q
         # this implies that we need to reorder rows/columns a little, which we do with a
         # permutation matrix.
         # This can change the determinants, but we're fixing that below anyways
-        r = min(p, q)
-        s = p + q - 2 * r
         sigma = np.block(
             [
-                [np.zeros((q, p-q)), np.eye(q), np.zeros((q, q))],
-                [np.eye(p-q), np.zeros((p-q, q)), np.zeros((p-q, q))],
-                [np.zeros((q, p-q)), np.zeros((q,q)), np.eye(q)],
+                [np.zeros((q, p-q)), np.eye(q)],# np.zeros((q, q))],
+                [np.eye(p-q), np.zeros((p-q, q))],# np.zeros((p-q, q))],
+                #[np.zeros((q, p-q)), np.zeros((q,q)), np.eye(q)],
             ]
         )
-        k1 = k1 @ sigma.T
-        a = sigma @ a @ sigma.T
-        k2 = sigma @ k2
+        k11 = k11 @ sigma.T
+        #a = sigma @ a @ sigma.T
+        k21 = sigma @ k21
 
     if validate:
         assert np.allclose(k1 @ a @ k2, u), f"\n{k1}\n{a}\n{k2}\n{u}"
@@ -53,25 +51,45 @@ def bdi(u, p, q, is_horizontal=True, validate=True):
     if is_horizontal:
         for i in range(p):
             # we want k1 = k2.T, but scipy is unburdened by such concerns
-            if not (np.allclose(k1[:p, i], k2[i, :p])):
-                d = np.diag([(-1) ** ((j % p) == i % p) for j in range(p + q)])
+            if not (np.allclose(k11[:, i], k21[i])):
+                raise ValueError
+                d = np.diag([(-1) ** ((j % p) == i) for j in range(p + q)])
                 a = a @ d
                 k2 = d @ k2
                 # k1 @ a @ k2 was unchanged by the above business
 
-    #print(k1)
-    #print(k2)
+    #print(k11, k12)
+    #print(k21, k22)
     # banish negative determinants
-    d1 = np.diag([det(k1[:p, :p])] + [1] * (p - 1) + [det(k1[p:, p:])] + [1] * (q - 1))
+    d11 = det(k11)
+    d12 = det(k12)
+    #d1 = (np.diag([d11] + [1] * (p - 1), [det(k12)] + [1] * (q - 1)))
+    k11[:, 0] = k11[:, 0] * d11
+    k12[:, 0] = k12[:, 0] * d12
+    print(f"Modified thetas from\n{theta}")
     if is_horizontal:
-        d2 = d1
+        d21 = d11
+        d22 = d12
+        k21[0] = k21[0] * d11
+        k22[0] = k22[0] * d12
+        theta[0] *= d11
     else:
-        d2 = np.diag([det(k2[:p, :p])] + [1] * (p - 1) + [det(k2[p:, p:])] + [1] * (q - 1))
-    print(f"Fixing by\n{d1} and\n{d2}")
-
-    k1 = k1 @ d1
-    a = d1 @ a @ d2
-    k2 = d2 @ k2
+        d21 = det(k21)
+        d22 = det(k22)
+        k21[0] = k21[0] * d21
+        k22[0] = k22[0] * d22
+        if d11 * d21 <0:
+            assert d12 * d22 < 0 
+            if d11 * d12 > 0:
+                theta[0] = theta[0] + np.pi
+            else:
+                theta[0] = np.pi - theta[0]
+        else:
+            assert d12 * d22 > 0 
+            if d11 * d12 < 0:
+                theta[0] = -theta[0]
+    print(f"to\n{theta}")
+    print(f"{d11=}, {d12=}, {d21=}, {d22=}")
 
     if validate:
         if is_horizontal:
@@ -81,7 +99,8 @@ def bdi(u, p, q, is_horizontal=True, validate=True):
         assert np.allclose([det(k1), det(k1[:p, :p]), det(k1[p:, p:])], 1.0)
         assert np.allclose([det(k2), det(k2[:p, :p]), det(k2[p:, p:])], 1.0)
         assert np.isclose(det(a), 1.0)
-    return k1, a, k2
+
+    return k11, k12, theta, k21, k22
 
 
 def embed(op, start, end, n):
@@ -93,8 +112,8 @@ def embed(op, start, end, n):
 def recursive_bdi(U, n, num_iter=None, first_is_horizontal=True, validate=True):
     q = n // 2
     p = n - q
-    k1, a, k2 = bdi(U, p, q, is_horizontal=first_is_horizontal, validate=validate)
-    ops = {-1: [(U, 0, n, None)], 0: [(k1, 0, n, "k1"), (a, 0, n, "a0"), (k2, 0, n, "k2")]}
+    k11, k12, theta, k21, k22 = bdi(U, p, q, is_horizontal=first_is_horizontal, validate=validate)
+    ops = {-1: [(U, 0, n, None)], 0: [(k11, 0, p, "k1"), (k12, p, n, "k1"), (theta, 0, n, "a0"), (k21, 0, p, "k2"), (k22, p, n, "k2")]}
     _iter = 0
     decomposed_something = True
     while decomposed_something:
@@ -102,28 +121,30 @@ def recursive_bdi(U, n, num_iter=None, first_is_horizontal=True, validate=True):
         new_ops = []
         for k, (op, start, end, _type) in enumerate(ops[_iter]):
             _n = end - start
-            if _type.startswith("a") or _n <= 4:
+            if _type.startswith("a") or _n <= 2:
                 # CSA element
                 new_ops.append((op, start, end, _type))
                 if _type == "a0":
+                    # Exploit horizontalness
                     break
                 continue
             _q = _n // 2
             _p = _n - _q
-            locs = [(0, _p), (_p, _n)]# if _type == "k1" else [(0, _p), (_p, _n)]
-            for s, e in locs:
-                __q = (e - s) // 2
-                __p = (e - s) - __q
-                k1, a, k2 = bdi(op[s:e, s:e], __p, __q, is_horizontal=False, validate=validate)
-                new_ops.extend(
-                    [
-                        (k1, start + s, start + e, "k1"),
-                        (a, start + s, start + e, "a"),
-                        (k2, start + s, start + e, "k2"),
-                    ]
-                )
+            #locs = [(0, _p), (_p, _n)]# if _type == "k1" else [(0, _p), (_p, _n)]
+            #for s, e in locs:
+            k11, k12, theta, k21, k22 = bdi(op, _p, _q, is_horizontal=False, validate=validate)
+            new_ops.extend(
+                [
+                    (k11, start, start + _p, "k1"),
+                    (k12, start + _p, end, "k1"),
+                    (theta, start, end, "a"),
+                    (k21, start, start + _p, "k2"),
+                    (k22, start + _p, end, "k2"),
+                ]
+            )
             decomposed_something = True
-        new_ops.extend(((op.T, start, end, _type) for op, start, end, _type in new_ops[:-1][::-1]))
+        # Exploit horizontalness
+        new_ops.extend((((-op if _type.startswith("a") else op.T), start, end, _type) for op, start, end, _type in new_ops[:-1][::-1]))
         _iter += 1
         ops[_iter] = new_ops
         if _iter == num_iter:
@@ -139,6 +160,14 @@ def group_matrix_to_reducible(matrix, mapping, signs, invol_type):
 """
 
 
+def angles_to_reducible(theta, s, e, mapping, signs, invol_type):
+    assert invol_type == "BDI"
+    q = (e - s) // 2
+    p = (e - s) - q
+    op = {mapping[(s+i, s + p+i)]: th / 2 / signs[(s+i, s+p+i)] for i, th in enumerate(theta)}
+    return PauliSentence(op)
+
+
 def group_matrix_to_reducible(matrix, start, mapping, signs, invol_type):
     """Map a (SO(n)) group element composed of commuting Given's rotations
     into commuting Pauli rotations on the reducible representation given by mapping & signs."""
@@ -147,7 +176,7 @@ def group_matrix_to_reducible(matrix, start, mapping, signs, invol_type):
     seen_ids = set()
     for i, j in zip(*np.where(matrix)):
         if i < j:
-            assert i not in seen_ids and j not in seen_ids
+            assert i not in seen_ids and j not in seen_ids, f"{matrix}"
             m_ii = matrix[i, i]
             m_jj = matrix[j, j]
             assert np.isclose((sign := np.sign(m_ii)), np.sign(m_jj)) or np.allclose([m_ii, m_jj], 0.), f"{m_ii}, {m_jj}"
@@ -181,7 +210,10 @@ def map_recursive_decomp_to_reducible(
         inv_mapping = {val: key for key, val in mapping.items()}
     n = max([k[1] for k in mapping]) + 1
     for mat, s, e, t in decomp:
-        ps = group_matrix_to_reducible(mat, s, mapping, signs, invol_type)
+        if t.startswith("a"):
+            ps = angles_to_reducible(mat, s, e, mapping, signs, invol_type)
+        else:
+            ps = group_matrix_to_reducible(mat, s, mapping, signs, invol_type)
         if t == "a0":
             if time is not None:
                 ps = ps / time
