@@ -104,9 +104,11 @@ def map_horizontal_subgraph(pauli_graph, horizontal_graph):
 
 def _node_commutator(node1, node2, invol_type):
     if invol_type == "BDI":
-        a, b = (set(node1) | set(node2)).difference(set(node1) & set(node2))
-        if a > b:
-            a, b = b, a
+        a,b,c,d = sorted(node1 + node2)
+        if a==b:
+            return (c, d)
+        if b==c:
+            return (a, d)
         return (a, b)
     elif invol_type == "DIII":
         i, j, t1, s1 = node1
@@ -320,6 +322,15 @@ def map_choice(mapping, missing, missing_ops, n, invol_type):
         return mapping, missing, missing_ops
     raise ValueError("No compatible choice could be made from the missing operators.")
 
+sign_map = {
+    "X": {"X": 1., "Y": 1j, "Z": -1j},
+    "Y": {"X": -1j, "Y": 1., "Z": 1j},
+    "Z": {"X": 1j, "Y": -1j, "Z": 1.},
+}
+
+def _comm_sign_pws(a, b):
+    wires = set(a) & set(b)
+    return np.prod([sign_map[a[w]][b[w]] for w in wires])
 
 def make_signs(mapping, n, invol_type):
     assert invol_type=="BDI"
@@ -332,7 +343,8 @@ def make_signs(mapping, n, invol_type):
                 continue
             node_com_sign = _node_commutator_sign(n1, n2, invol_type)
             com_node = _node_commutator(n1, n2, invol_type)
-            pw_com_sign = (mapping[n1]._commutator(mapping[n2])[1] / -2j).real
+            pw_com_sign = (_comm_sign_pws(mapping[n1], mapping[n2]) / 1j).real
+            #pw_com_sign = (mapping[n1]._commutator(mapping[n2])[1] / -2j).real
             relative_sign = node_com_sign * pre_sign1 * pre_sign2 / pw_com_sign
             if signs.get(com_node, relative_sign) != relative_sign:
                 raise ValueError("Inconsistency")
@@ -484,17 +496,21 @@ def make_so_2n_full_mapping(n, xy_symmetric=False):
     here."""
     if xy_symmetric:
         return _so_2n_full_mapping_xy(n)
+
     mapping = {}
-    for i in range(n-1):
-        # upper left triangle
-        mapping |= {(i, j): PauliWord({i:"X", j:"Y"} | {w: "Z" for w in range(i+1, j)}) for j in range(i+1, n)}
-        # lower right triangle
-        mapping |= {(n+i, n+j): PauliWord({i:"Y", j:"X"} | {w: "Z" for w in range(i+1, j)}) for j in range(i+1, n)}
-        # upper right triangle of off-diagonal
-        mapping |= {(i, n+j): PauliWord({i:"X", j:"X"} | {w: "Z" for w in range(i+1, j)}) for j in range(i+1, n)}
-        # lower left triangle of off-diagonal
-        mapping |= {(j, n+i): PauliWord({i:"Y", j:"Y"} | {w: "Z" for w in range(i+1, j)}) for j in range(i+1, n)}
+    # upper left triangle
+    mapping |= {(i, j): PauliWord({i:"X", j:"Y"} | {w: "Z" for w in range(i+1, j)}) for i in range(n-1) for j in range(i+1, n)}
+    # lower right triangle
+    mapping |= {(n+i, n+j): PauliWord({i:"Y", j:"X"} | {w: "Z" for w in range(i+1, j)}) for i in range(n-1) for j in range(i+1, n)}
+    # upper right triangle of off-diagonal
+    mapping |= {(i, n+j): PauliWord({i:"X", j:"X"} | {w: "Z" for w in range(i+1, j)}) for i in range(n-1) for j in range(i+1, n)}
+    # lower left triangle of off-diagonal
+    mapping |= {(j, n+i): PauliWord({i:"Y", j:"Y"} | {w: "Z" for w in range(i+1, j)}) for i in range(n-1) for j in range(i+1, n)}
     # diagonal of off-diagonal
     mapping |= {(i, n+i): PauliWord({i:"Z"}) for i in range(n)}
-    return mapping
+
+    signs = {(i, n+i): -1 for i in range(n)}
+    signs |= {(i, j): 1 for i in range(n) for j in range(i+1, 2 * n)}
+    signs |= {(i, j): -1 for i in range(n, 2*n) for j in range(i, 2*n)}
+    return mapping, signs
 
