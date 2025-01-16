@@ -6,7 +6,7 @@ from pennylane.pauli import PauliSentence
 from scipy.linalg import cossin, expm, logm, det
 
 
-def bdi(u, p, q, is_horizontal=True):
+def bdi(u, p, q, is_horizontal=True, validate=True):
     """BDI(p, q) Cartan decomposition of special orthogonal u
 
     Args:
@@ -24,27 +24,31 @@ def bdi(u, p, q, is_horizontal=True):
 
     The input ``u`` and all three output matrices are group elements, not algebra elements.
     """
-    k1, a, k2 = cossin(u, p=p, q=q, swap_sign=True)
-    if p != q:
-        # The cosine-sine decomposition decomposes into SO(p)xSO(q) on the left and SO(q)xSO(p)
-        # on the right. This also yields a different choice of CSA than we can easily extract
-        # when mapping back to Paulis. Therefore we multiply by the following matrix that
-        # sends the last column of a and the last row of k2 to the index p.
-        # This can change the determinant of a and k2, but we're fixing that below anyways
-        assert p > q, "the transposition matrix is implemented for p>q only."
+    if validate:
+        assert u.shape == (p + q, p + q)
+    # Note that the argument p of cossin is the same as for this function, but q *is not the same*.
+    k1, a, k2 = cossin(u, p=p, q=p, swap_sign=True)
+    if p > q:
+        # For unequal p and q, scipy puts the identity matrix in a at the start of the larger
+        # block, while we chose to always have it between the non-identity cos blocks. For p>q
+        # this implies that we need to reorder rows/columns a little, which we do with a
+        # permutation matrix.
+        # This can change the determinants, but we're fixing that below anyways
         r = min(p, q)
         s = p + q - 2 * r
-        T = np.block(
+        sigma = np.block(
             [
-                [np.eye(r), np.zeros((r, s)), np.zeros((r, r))],
-                [np.zeros((r, r)), np.zeros((r, s)), np.eye(r)],
-                [np.zeros((s, r)), np.eye(s), np.zeros((s, r))],
+                [np.zeros((q, p-q)), np.eye(q), np.zeros((q, q))],
+                [np.eye(p-q), np.zeros((p-q, q)), np.zeros((p-q, q))],
+                [np.zeros((q, p-q)), np.zeros((q,q)), np.eye(q)],
             ]
         )
-        a = a @ T
-        k2 = T.T @ k2
+        k1 = k1 @ sigma.T
+        a = sigma @ a @ sigma.T
+        k2 = sigma @ k2
 
-    assert np.allclose(k1 @ a @ k2, u), f"\n{k1}\n{a}\n{k2}\n{u}"
+    if validate:
+        assert np.allclose(k1 @ a @ k2, u), f"\n{k1}\n{a}\n{k2}\n{u}"
 
     if is_horizontal:
         for i in range(p):
@@ -60,23 +64,20 @@ def bdi(u, p, q, is_horizontal=True):
     if is_horizontal:
         d2 = d1
     else:
-        # Even though we need to compute the determinants with respect to the partition
-        # (q, p) (instead of (p, q) like for k1), we need to put the correcting determinant
-        # at index p, and not q, in order to have a take the right form (only 1's and pairwise
-        # cosines with the same signs on the diagonal)
-        d2 = np.diag([det(k2[:q, :q])] + [1] * (p - 1) + [det(k2[q:, q:])] + [1] * (q - 1))
+        d2 = np.diag([det(k2[:p, :p])] + [1] * (p - 1) + [det(k2[p:, p:])] + [1] * (q - 1))
 
     k1 = k1 @ d1
     a = d1 @ a @ d2
     k2 = d2 @ k2
 
-    if is_horizontal:
-        assert np.allclose(k1, k2.T)
-    assert np.allclose(k1 @ a @ k2, u), f"\n{k1}\n{a}\n{k2}\n{u}"
+    if validate:
+        if is_horizontal:
+            assert np.allclose(k1, k2.T)
+        assert np.allclose(k1 @ a @ k2, u), f"\n{k1}\n{a}\n{k2}\n{u}"
 
-    assert np.allclose([det(k1), det(k1[:p, :p]), det(k1[p:, p:])], 1.0)
-    assert np.allclose([det(k2), det(k2[:q, :q]), det(k2[q:, q:])], 1.0)
-    assert np.isclose(det(a), 1.0)
+        assert np.allclose([det(k1), det(k1[:p, :p]), det(k1[p:, p:])], 1.0)
+        assert np.allclose([det(k2), det(k2[:p, :p]), det(k2[p:, p:])], 1.0)
+        assert np.isclose(det(a), 1.0)
     return k1, a, k2
 
 
@@ -86,10 +87,10 @@ def embed(op, start, end, n):
     return mat
 
 
-def recursive_bdi(U, n, num_iter=None, first_is_horizontal=True):
+def recursive_bdi(U, n, num_iter=None, first_is_horizontal=True, validate=True):
     q = n // 2
     p = n - q
-    k1, a, k2 = bdi(U, p, q, is_horizontal=first_is_horizontal)
+    k1, a, k2 = bdi(U, p, q, is_horizontal=first_is_horizontal, validate=validate)
     ops = {-1: [(U, 0, n, None)], 0: [(k1, 0, n, "k1"), (a, 0, n, "a0"), (k2, 0, n, "k2")]}
     _iter = 0
     decomposed_something = True
@@ -106,11 +107,11 @@ def recursive_bdi(U, n, num_iter=None, first_is_horizontal=True):
                 continue
             _q = _n // 2
             _p = _n - _q
-            locs = [(0, _p), (_p, _n)] if _type == "k1" else [(0, _q), (_q, _n)]
+            locs = [(0, _p), (_p, _n)]# if _type == "k1" else [(0, _p), (_p, _n)]
             for s, e in locs:
                 __q = (e - s) // 2
                 __p = (e - s) - __q
-                k1, a, k2 = bdi(op[s:e, s:e], __p, __q, is_horizontal=False)
+                k1, a, k2 = bdi(op[s:e, s:e], __p, __q, is_horizontal=False, validate=validate)
                 new_ops.extend(
                     [
                         (k1, start + s, start + e, "k1"),
@@ -158,7 +159,7 @@ def group_matrix_to_reducible(matrix, start, mapping, signs, invol_type):
 
 
 def map_recursive_decomp_to_reducible(
-    recursive_decomp, mapping, signs, invol_type, time=None, tol=1e-8, assertions=False
+    recursive_decomp, mapping, signs, invol_type, time=None, tol=1e-8, validate=False
 ):
     """Map the result of recursive_bdi back to a series of Pauli rotations in the reducible
     representation specified by mapping & signs.
@@ -171,7 +172,7 @@ def map_recursive_decomp_to_reducible(
 
     decomp = recursive_decomp[max(recursive_decomp.keys())]
     pauli_decomp = []
-    if assertions:
+    if validate:
         from .map_to_irrep import E
 
         inv_mapping = {val: key for key, val in mapping.items()}
@@ -185,8 +186,8 @@ def map_recursive_decomp_to_reducible(
             ps.simplify(tol=tol)
         pauli_decomp.extend(((pw, coeff, t) for pw, coeff in ps.items()))
 
-        # Assertions to check some properties. Not required for the actual computation
-        if assertions:
+        # validate to check some properties. Not required for the actual computation
+        if validate:
             assert all(pw1.commutes_with(pw2) for pw1, pw2 in combinations(ps.keys(), r=2))
             if not t.startswith("a"):
                 assert len(ps) == 2
