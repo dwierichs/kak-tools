@@ -29,21 +29,8 @@ def bdi(u, p, q, is_horizontal=True, validate=True):
     # Note that the argument p of cossin is the same as for this function, but q *is not the same*.
     (k11, k12), theta, (k21, k22) = cossin(u, p=p, q=p, swap_sign=True, separate=True)
     if p > q:
-        # For unequal p and q, scipy puts the identity matrix in a at the start of the larger
-        # block, while we chose to always have it between the non-identity cos blocks. For p>q
-        # this implies that we need to reorder rows/columns a little, which we do with a
-        # permutation matrix.
-        # This can change the determinants, but we're fixing that below anyways
-        sigma = np.block(
-            [
-                [np.zeros((q, p-q)), np.eye(q)],# np.zeros((q, q))],
-                [np.eye(p-q), np.zeros((p-q, q))],# np.zeros((p-q, q))],
-                #[np.zeros((q, p-q)), np.zeros((q,q)), np.eye(q)],
-            ]
-        )
-        k11 = k11 @ sigma.T
-        #a = sigma @ a @ sigma.T
-        k21 = sigma @ k21
+        k11 = np.roll(k11, p-q, axis=1)
+        k21 = np.roll(k21, p-q, axis=0)
 
     if validate:
         assert np.allclose(k1 @ a @ k2, u), f"\n{k1}\n{a}\n{k2}\n{u}"
@@ -58,38 +45,22 @@ def bdi(u, p, q, is_horizontal=True, validate=True):
                 k2 = d @ k2
                 # k1 @ a @ k2 was unchanged by the above business
 
-    #print(k11, k12)
-    #print(k21, k22)
     # banish negative determinants
     d11 = det(k11)
     d12 = det(k12)
-    #d1 = (np.diag([d11] + [1] * (p - 1), [det(k12)] + [1] * (q - 1)))
-    k11[:, 0] = k11[:, 0] * d11
-    k12[:, 0] = k12[:, 0] * d12
-    print(f"Modified thetas from\n{theta}")
+    k11[:, 0] *= d11
+    k12[:, 0] *= d12
     if is_horizontal:
-        d21 = d11
-        d22 = d12
-        k21[0] = k21[0] * d11
-        k22[0] = k22[0] * d12
+        k21[0] *= d11
+        k22[0] *= d12
         theta[0] *= d11
     else:
         d21 = det(k21)
-        d22 = det(k22)
-        k21[0] = k21[0] * d21
-        k22[0] = k22[0] * d22
+        k21[0] *= d21
+        k22[0] *= d11 * d12 * d21 # d22 must complement to 1
+        theta[0] *= d11 * d12
         if d11 * d21 <0:
-            assert d12 * d22 < 0 
-            if d11 * d12 > 0:
-                theta[0] = theta[0] + np.pi
-            else:
-                theta[0] = np.pi - theta[0]
-        else:
-            assert d12 * d22 > 0 
-            if d11 * d12 < 0:
-                theta[0] = -theta[0]
-    print(f"to\n{theta}")
-    print(f"{d11=}, {d12=}, {d21=}, {d22=}")
+            theta[0] += np.pi
 
     if validate:
         if is_horizontal:
