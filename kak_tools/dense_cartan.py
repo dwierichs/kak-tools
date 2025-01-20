@@ -80,17 +80,18 @@ def embed(op, start, end, n):
     return mat
 
 
-def recursive_bdi(U, n, num_iter=None, first_is_horizontal=True, validate=True):
+def recursive_bdi(U, n, num_iter=None, first_is_horizontal=True, validate=True, return_all=False):
     q = n // 2
     p = n - q
     k11, k12, theta, k21, k22 = bdi(U, p, q, is_horizontal=first_is_horizontal, validate=validate)
     ops = {-1: [(U, 0, n, None)], 0: [(k11, 0, p, "k1"), (k12, p, n, "k1"), (theta, 0, n, "a0"), (k21, 0, p, "k2"), (k22, p, n, "k2")]}
+    current_ops = ops[0]
     _iter = 0
     decomposed_something = True
     while decomposed_something:
         decomposed_something = False
         new_ops = []
-        for k, (op, start, end, _type) in enumerate(ops[_iter]):
+        for k, (op, start, end, _type) in enumerate(current_ops):
             _n = end - start
             if _type.startswith("a") or _n <= 2:
                 # CSA element
@@ -117,32 +118,32 @@ def recursive_bdi(U, n, num_iter=None, first_is_horizontal=True, validate=True):
         # Exploit horizontalness
         new_ops.extend((((-op if _type.startswith("a") else op.T), start, end, _type) for op, start, end, _type in new_ops[:-1][::-1]))
         _iter += 1
-        ops[_iter] = new_ops
+        if return_all:
+            ops[_iter] = new_ops
+        current_ops = new_ops
         if _iter == num_iter:
             break
 
-    return ops
+    if return_all:
+        return ops
+    return current_ops
 
-"""
-def group_matrix_to_reducible(matrix, mapping, signs, invol_type):
-    gen = logm(matrix)
-    assert np.allclose(np.diag(gen), 0.)
-    return map_matrix_to_reducible(gen, mapping, signs, invol_type)
-"""
-
-
-def angles_to_reducible(theta, s, e, mapping, signs, invol_type):
-    assert invol_type == "BDI"
+def angles_to_reducible(theta, s, e, mapping, signs):
     q = (e - s) // 2
     p = (e - s) - q
     op = {mapping[(s+i, s + p+i)]: th / 2 / signs[(s+i, s+p+i)] for i, th in enumerate(theta)}
     return PauliSentence(op)
 
+def angles_to_reducible_str(theta, s, e, mapping):
+    q = (e - s) // 2
+    p = (e - s) - q
+    op = {(pw_sign:=mapping[(s+i, s + p+i)])[0]: th / 2 / pw_sign[1] for i, th in enumerate(theta)}
+    return op
 
-def group_matrix_to_reducible(matrix, start, mapping, signs, invol_type):
+
+def group_matrix_to_reducible(matrix, start, mapping, signs):
     """Map a (SO(n)) group element composed of commuting Given's rotations
     into commuting Pauli rotations on the reducible representation given by mapping & signs."""
-    assert invol_type == "BDI"
     op = {}
     seen_ids = set()
     for i, j in zip(*np.where(matrix)):
@@ -160,9 +161,30 @@ def group_matrix_to_reducible(matrix, start, mapping, signs, invol_type):
 
     return PauliSentence(op)
 
+def group_matrix_to_reducible_str(matrix, start, mapping):
+    """Map a (SO(n)) group element composed of commuting Given's rotations
+    into commuting Pauli rotations on the reducible representation given by mapping & signs."""
+    op = {}
+    seen_ids = set()
+    for i, j in zip(*np.where(matrix)):
+        if i < j:
+            assert i not in seen_ids and j not in seen_ids, f"{matrix}"
+            m_ii = matrix[i, i]
+            m_jj = matrix[j, j]
+            assert np.isclose((sign := np.sign(m_ii)), np.sign(m_jj)) or np.allclose([m_ii, m_jj], 0.), f"{m_ii}, {m_jj}"
+            angle = np.arcsin(matrix[i, j])
+            assert angle.dtype == np.float64
+            if sign < 0:
+                angle = np.pi - angle
+            pw, sign = mapping[(start + i, start + j)]
+            op[pw] = angle / 2 / sign
+            seen_ids |= {i, j}
+
+    return op
+
 
 def map_recursive_decomp_to_reducible(
-    recursive_decomp, mapping, signs, invol_type, time=None, tol=1e-8, validate=False
+    recursive_decomp, mapping, signs, time=None, tol=1e-8, validate=False
 ):
     """Map the result of recursive_bdi back to a series of Pauli rotations in the reducible
     representation specified by mapping & signs.
@@ -171,9 +193,8 @@ def map_recursive_decomp_to_reducible(
     rescaled variant exp(t H), the parameter t should be provided as the ``time`` parameter
     to this function.
     """
-    assert invol_type == "BDI"
 
-    decomp = recursive_decomp[max(recursive_decomp.keys())]
+    decomp = recursive_decomp
     pauli_decomp = []
     if validate:
         from .map_to_irrep import E
@@ -182,9 +203,9 @@ def map_recursive_decomp_to_reducible(
     n = max([k[1] for k in mapping]) + 1
     for mat, s, e, t in decomp:
         if t.startswith("a"):
-            ps = angles_to_reducible(mat, s, e, mapping, signs, invol_type)
+            ps = angles_to_reducible(mat, s, e, mapping, signs)
         else:
-            ps = group_matrix_to_reducible(mat, s, mapping, signs, invol_type)
+            ps = group_matrix_to_reducible(mat, s, mapping, signs)
         if t == "a0":
             if time is not None:
                 ps = ps / time
@@ -210,5 +231,28 @@ def map_recursive_decomp_to_reducible(
                 raise ValueError(
                     "The decomposition into Pauli rotations did not correctly reproduce the matrix."
                 )
+
+    return pauli_decomp
+
+def map_recursive_decomp_to_reducible_str(recursive_decomp, mapping, time=None, tol=1e-8):
+    """Map the result of recursive_bdi back to a series of Pauli rotations in the reducible
+    representation specified by mapping & signs.
+
+    If the group element that was decomposed with recursive_bdi was not exp(H) but some
+    rescaled variant exp(t H), the parameter t should be provided as the ``time`` parameter
+    to this function.
+    """
+    pauli_decomp = []
+    for mat, s, e, t in recursive_decomp:
+        if t.startswith("a"):
+            ps = angles_to_reducible_str(mat, s, e, mapping)
+        else:
+            ps = group_matrix_to_reducible_str(mat, s, mapping)
+        if t == "a0":
+            if time is not None:
+                ps = {key: val / time for key, val in ps.items()}
+        if tol is not None:
+            ps = {key: val for key, val in ps.items() if np.abs(val) >= tol}
+        pauli_decomp.extend(((pw, coeff, t) for pw, coeff in ps.items()))
 
     return pauli_decomp

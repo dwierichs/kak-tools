@@ -3,7 +3,9 @@ import networkx as nx
 import numpy as np
 import matplotlib.pyplot as plt
 
+import pennylane as qml
 from pennylane.pauli import PauliWord, PauliSentence
+from pennylane import X, Y, Z
 from .pauli_dlas import anticom_graph_pauli
 
 
@@ -514,3 +516,73 @@ def make_so_2n_full_mapping(n, xy_symmetric=False):
     signs |= {(i, j): -1 for i in range(n, 2*n) for j in range(i, 2*n)}
     return mapping, signs
 
+def make_so_2n_full_mapping_str(n, xy_symmetric=False):
+    """Create a default reducible-to-irreducible mapping for all operators of so(2n) implemented
+    by the transverse field XY model. The irrep is compatible with a BDI decomposition and
+    the Hamiltonian terms (XX coupling, YY coupling, Z field) to be horizontal. In particular
+    the mapping created by `make_so_2n_horizontal_mapping` is contained in the mapping created
+    here."""
+    if xy_symmetric:
+        raise ValueError
+        return _so_2n_full_mapping_xy_str(n)
+
+    mapping = {}
+    # upper left triangle
+    mapping |= {(i, j): (f"{i}X{j - i - 1}Y{n-j-1}", 1) for i in range(n-1) for j in range(i+1, n)}
+    # lower right triangle
+    mapping |= {(n+i, n+j): (f"{i}Y{j - i - 1}X{n-j-1}", -1) for i in range(n-1) for j in range(i+1, n)}
+    # upper right triangle of off-diagonal
+    mapping |= {(i, n+j): (f"{i}X{j - i - 1}X{n-j-1}", 1) for i in range(n-1) for j in range(i+1, n)}
+    # lower left triangle of off-diagonal
+    mapping |= {(j, n+i): (f"{i}Y{j - i - 1}Y{n-j-1}", 1) for i in range(n-1) for j in range(i+1, n)}
+    # diagonal of off-diagonal
+    mapping |= {(i, n+i): (f"{i}Z{n - i - 1}", -1) for i in range(n)}
+
+    #signs = {(i, n+i): -1 for i in range(n)}
+    #signs |= {(i, j): 1 for i in range(n) for j in range(i+1, 2 * n)}
+    #signs |= {(i, j): -1 for i in range(n, 2*n) for j in range(i, 2*n)}
+    return mapping
+
+def _make_tfXY_coeffs(n, coefficients):
+    if coefficients == "random":
+        alphas = np.random.normal(0.6, 1., size=n-1)
+        betas = np.random.normal(0.3, 1.2, size=n-1)
+        gammas = np.random.normal(0., 0.3, size=n)
+    elif coefficients == "random TF":
+        alphas = np.ones(n-1)
+        betas = np.ones(n-1)
+        gammas = np.random.normal(0., 0.3, size=n)
+    elif coefficients == "uniform":
+        alphas = np.ones(n-1)
+        betas = np.ones(n-1)
+        gammas = np.ones(n)
+
+    norm = np.linalg.norm(np.concatenate([alphas, betas, gammas]))
+    return alphas / norm, betas / norm, gammas / norm
+
+def make_tfXY_hamiltonian_irrep(n, coefficients="random"):
+    """Create the transverse-field XY model Hamiltonian on n qubits,
+    represented in a free-fermionic picture as 2n x 2n matrix.
+    This function uses the hardcoded mapping from the manuscript for this particular
+    model.
+    The Hamiltonian is normalized to trace norm 1.
+    """
+    alphas, betas, gammas = _make_tfXY_coeffs(n, coefficients)
+    H_irrep = np.diag(-gammas, k=n)
+    H_irrep += np.diag(alphas, k=n+1)
+    H_irrep += np.diag(np.concatenate([[0], betas, [0]]), k=n-1)
+    return H_irrep
+
+def make_tfXY_hamiltonian_qubits(n, coefficients="random"):
+    """Create the transverse-field XY model Hamiltonian on n qubits,
+    in its original representation on qubits.
+    The Hamiltonian is normalized to trace norm 1.
+    """
+    alphas, betas, gammas = _make_tfXY_coeffs(n, coefficients)
+    coeffs = np.concatenate([alphas, betas, gammas])
+    couplings = [X(w) @ X(w+1) for w in range(n-1)] + [Y(w) @ Y(w+1) for w in range(n-1)]
+    Zs = [Z(w) for w in range(n)]
+    generators = couplings + Zs
+    H = qml.dot(coeffs, generators)
+    generators = [next(iter(op.pauli_rep)) for op in generators]
+    return H, generators, coeffs
