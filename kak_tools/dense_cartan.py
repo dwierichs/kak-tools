@@ -6,7 +6,7 @@ from pennylane.pauli import PauliSentence
 from scipy.linalg import cossin, expm, logm, det
 
 
-def bdi(u, p, q, is_horizontal=True, validate=True):
+def bdi(u, p, q, is_horizontal=True, validate=True, **kwargs):
     """BDI(p, q) Cartan decomposition of special orthogonal u
 
     Args:
@@ -27,13 +27,34 @@ def bdi(u, p, q, is_horizontal=True, validate=True):
     if validate:
         assert u.shape == (p + q, p + q)
     # Note that the argument p of cossin is the same as for this function, but q *is not the same*.
+    if kwargs.get("compute_u", True) is False:
+        return cossin(u, p=p, q=p, swap_sign=True, separate=True, **kwargs)[1]
     (k11, k12), theta, (k21, k22) = cossin(u, p=p, q=p, swap_sign=True, separate=True)
+    if validate:
+        f = abs(p-q)
+        r = min(p, q)
+        k1 = np.block([[k11, np.zeros((p, q))], [np.zeros((q, p)), k12]])
+        a = np.block([
+            [np.eye(f), np.zeros((f, r)), np.zeros((f, r))],
+            [np.zeros((r, f)), np.diag(np.cos(theta)), np.diag(np.sin(theta))],
+            [np.zeros((r, f)), np.diag(-np.sin(theta)), np.diag(np.cos(theta))],
+        ])
+        k2 = np.block([[k21, np.zeros((p, q))], [np.zeros((q, p)), k22]])
+        assert np.allclose(k1 @ a @ k2, u), f"\n{k1}\n{a}\n{k2}\n{k1 @ a @ k2}\n{u}"
+
     if p > q:
-        k11 = np.roll(k11, p-q, axis=1)
-        k21 = np.roll(k21, p-q, axis=0)
+        k11 = np.roll(k11, q-p, axis=1)
+        k21 = np.roll(k21, q-p, axis=0)
 
     if validate:
-        assert np.allclose(k1 @ a @ k2, u), f"\n{k1}\n{a}\n{k2}\n{u}"
+        k1 = np.block([[k11, np.zeros((p, q))], [np.zeros((q, p)), k12]])
+        a = np.block([
+            [np.diag(np.cos(theta)), np.zeros((r, f)), np.diag(np.sin(theta))],
+            [np.zeros((f, r)), np.eye(f), np.zeros((f, r))],
+            [np.diag(-np.sin(theta)), np.zeros((r, f)), np.diag(np.cos(theta))],
+        ])
+        k2 = np.block([[k21, np.zeros((p, q))], [np.zeros((q, p)), k22]])
+        assert np.allclose(k1 @ a @ k2, u), f"\n{k1}\n{a}\n{k2}\n{k1 @ a @ k2}\n{u}"
 
     if is_horizontal:
         for i in range(p):
@@ -53,7 +74,7 @@ def bdi(u, p, q, is_horizontal=True, validate=True):
     if is_horizontal:
         k21[0] *= d11
         k22[0] *= d12
-        theta[0] *= d11
+        theta[0] *= d11 * d12
     else:
         d21 = det(k21)
         k21[0] *= d21
@@ -63,9 +84,18 @@ def bdi(u, p, q, is_horizontal=True, validate=True):
             theta[0] += np.pi
 
     if validate:
+        f = abs(p-q)
+        r = min(p, q)
+        k1 = np.block([[k11, np.zeros((p, q))], [np.zeros((q, p)), k12]])
+        a = np.block([
+            [np.diag(np.cos(theta)), np.zeros((r, f)), np.diag(np.sin(theta))],
+            [np.zeros((f, r)), np.eye(f), np.zeros((f, r))],
+            [np.diag(-np.sin(theta)), np.zeros((r, f)), np.diag(np.cos(theta))],
+        ])
+        k2 = np.block([[k21, np.zeros((p, q))], [np.zeros((q, p)), k22]])
         if is_horizontal:
             assert np.allclose(k1, k2.T)
-        assert np.allclose(k1 @ a @ k2, u), f"\n{k1}\n{a}\n{k2}\n{u}"
+        assert np.allclose(k1 @ a @ k2, u), f"\n{k1}\n{a}\n{k2}\n{k1 @ a @ k2}\n{u}"
 
         assert np.allclose([det(k1), det(k1[:p, :p]), det(k1[p:, p:])], 1.0)
         assert np.allclose([det(k2), det(k2[:p, :p]), det(k2[p:, p:])], 1.0)
@@ -233,6 +263,42 @@ def map_recursive_decomp_to_reducible(
                 )
 
     return pauli_decomp
+
+def round_angles_to_irreducible_mat(theta, start, end, n, tol):
+    q = (end - start) // 2
+    p = end - start - q
+    f = abs(p-q)
+    r = min(p, q)
+    theta = np.array([th if np.abs(np.sin(th)) > tol else 0 for th in theta])
+    a = np.block([
+        [np.diag(np.cos(theta)), np.zeros((r, f)), np.diag(np.sin(theta))],
+        [np.zeros((f, r)), np.eye(f), np.zeros((f, r))],
+        [np.diag(-np.sin(theta)), np.zeros((r, f)), np.diag(np.cos(theta))],
+    ])
+    return embed(a, start, end, n)
+
+def round_mat_to_irreducible_mat(mat, start, end, n, tol):
+    #print(mat)
+    k = np.where((np.abs(mat) > tol) + (np.abs(mat) < (1-tol)), mat, np.eye(len(mat)))
+    #print(k)
+    return embed(k, start, end, n)
+
+
+def round_mult_recursive_decomp_str(recursive_decomp, time, n_so, tol=1e-8):
+
+    out = np.eye(n_so)
+    for mat, s, e, t in recursive_decomp:
+        if t.startswith("a"):
+            if t == "a0":
+                if time is not None:
+                    mat = mat / time
+            mat = round_angles_to_irreducible_mat(mat, s, e, n_so, tol)
+        else:
+            mat = round_mat_to_irreducible_mat(mat, s, e, n_so, tol)
+
+        out @= mat
+    return out
+
 
 def map_recursive_decomp_to_reducible_str(recursive_decomp, mapping, time=None, tol=1e-8):
     """Map the result of recursive_bdi back to a series of Pauli rotations in the reducible

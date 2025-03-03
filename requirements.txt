@@ -1,1 +1,4 @@
 pennylane
+tqdm
+jax
+

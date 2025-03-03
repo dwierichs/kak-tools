@@ -416,12 +416,22 @@ def map_simple_to_irrep(ops, horizontal_ops=None, n=None, invol_type=None, invol
 def map_irrep_to_matrices(mapping, signs, n, invol_type):
     return {op: signs[node] * E(node, n, invol_type) for node, op in mapping.items()}
 
+"""
 def irrep_dot(coeffs, generators, mapping, signs, n, invol_type):            
     out = 0.
     inv_mapping = {op: node for node, op in mapping.items() if op in generators}
     for c, gen in zip(coeffs, generators):
         node = inv_mapping[gen]
         out += c * signs[node] * E(node, n, invol_type)
+    return out
+"""
+
+def irrep_dot(coeffs, generators, mapping, n, invol_type):
+    out = 0.
+    inv_mapping = {op: (node, sign) for node, (op, sign) in mapping.items() if op in generators}
+    for c, gen in zip(coeffs, generators):
+        node, sign = inv_mapping[gen]
+        out += c * sign * E(node, n, invol_type)
     return out
 
 
@@ -568,9 +578,10 @@ def make_tfXY_hamiltonian_irrep(n, coefficients="random"):
     The Hamiltonian is normalized to trace norm 1.
     """
     alphas, betas, gammas = _make_tfXY_coeffs(n, coefficients)
-    H_irrep = np.diag(-gammas, k=n)
-    H_irrep += np.diag(alphas, k=n+1)
-    H_irrep += np.diag(np.concatenate([[0], betas, [0]]), k=n-1)
+    H_irrep = np.diag(-gammas, k=n) - np.diag(-gammas, k=-n)
+    H_irrep += np.diag(alphas, k=n+1) - np.diag(alphas, k=-n-1)
+    _betas = np.concatenate([[0], betas, [0]])
+    H_irrep += np.diag(_betas, k=n-1) - np.diag(_betas, k=-n+1)
     return H_irrep
 
 def make_tfXY_hamiltonian_qubits(n, coefficients="random"):
