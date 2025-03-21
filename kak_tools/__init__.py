@@ -17,4 +17,5 @@ from .dense_cartan import (
     map_recursive_decomp_to_reducible_str,
     round_mult_recursive_decomp_str,
 )
-from .ai import ai_kak
+from .numerical_decompositions import ai_kak, aii_kak, aiii_kak, bdi_kak, sympl_eig
+

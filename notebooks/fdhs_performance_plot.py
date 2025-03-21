@@ -26,7 +26,8 @@ plot_filename = f"/home/david/repos/kak-tools/gfx/fdhs_performance.pdf"
 fontsize = 18
 
 workflow_levels = ["complete", "known_algebra", "minimal", "diag_only"]
-Colors = {"complete": "xkcd:blue violet", "known_algebra": "xkcd:red pink", "minimal": "xkcd:orange yellow", "diag_only": "xkcd:moss"}
+#Colors = {"complete": "xkcd:blue violet", "known_algebra": "xkcd:red pink", "minimal": "xkcd:orange yellow", "diag_only": "xkcd:moss"}
+Colors = {"complete": "#9411a7", "known_algebra": "#f27675", "minimal": "#ffa82a", "diag_only": "#44aa00"}
 Markers = {"complete": "s", "known_algebra": "o", "minimal": "d", "diag_only": "+"}
 Labels = {"complete": "Complete", "known_algebra": r"Known $\mathfrak{g}$", "minimal": "Minimal", "diag_only": "Diag."}
 N_max = {"complete": 100, "known_algebra": 200, "minimal": 1000, "diag_only": 2000}

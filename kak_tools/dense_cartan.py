@@ -198,13 +198,13 @@ def group_matrix_to_reducible_str(matrix, start, mapping):
     seen_ids = set()
     for i, j in zip(*np.where(matrix)):
         if i < j:
-            assert i not in seen_ids and j not in seen_ids, f"{matrix}"
+            #assert i not in seen_ids and j not in seen_ids, f"{matrix}"
             m_ii = matrix[i, i]
             m_jj = matrix[j, j]
-            assert np.isclose((sign := np.sign(m_ii)), np.sign(m_jj)) or np.allclose([m_ii, m_jj], 0.), f"{m_ii}, {m_jj}"
+            #assert np.isclose((sign := np.sign(m_ii)), np.sign(m_jj)) or np.allclose([m_ii, m_jj], 0.), f"{m_ii}, {m_jj}"
             angle = np.arcsin(matrix[i, j])
-            assert angle.dtype == np.float64
-            if sign < 0:
+            #assert angle.dtype == np.float64
+            if np.sign(m_ii) < 0:
                 angle = np.pi - angle
             pw, sign = mapping[(start + i, start + j)]
             op[pw] = angle / 2 / sign

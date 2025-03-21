@@ -15,8 +15,8 @@ from pennylane import X, Y, Z, I
 from kak_tools.full_workflows import minimal_workflow_tfXY, complete_workflow_tfXY, workflow_tfXY_known_algebra
 
 # Config
-workflow_level = "complete"
-workflow_level = "known_algebra"
+#workflow_level = "complete"
+#workflow_level = "known_algebra"
 workflow_level = "minimal"
 
 coefficients = "random"

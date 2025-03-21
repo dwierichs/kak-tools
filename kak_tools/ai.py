@@ -54,7 +54,8 @@ def ai_kak(u, verify=0):
     # u is a (square) np.array to ai-kak;
     # we follow the procedure in the overleaf
 
-    evals, o = eig(u@u.T)
+    dim = u.shape[0]
+    evals, o1 = eig(u@u.T)
 
     # degenerate (irl this means approximately degenerate) eigenvals can produce complex vectors, 
     # but we can ``realise'' (lol) them as discussed in the overleaf.
@@ -62,34 +63,35 @@ def ai_kak(u, verify=0):
     # and even if it did this wouldn't survive the realising, 
     # so we have to press the gram-schmidt button.
 
-    for v in set(evals.round(5)):
+    unique_evals = np.unique(evals.round(5))
+    if len(unique_evals) != dim:
 
-        inds = np.where(np.abs(evals-v) < 1e-5)[0]
-        if inds.shape[0] == 1: # lonely eigenvalue 
-            continue
+        for v in unique_evals:
 
-        o[:, inds] = gram_schmidt(o[:, inds].real)
+            inds = np.where(np.abs(evals-v) < 1e-5)[0]
+            if inds.shape[0] == 1: # lonely eigenvalue 
+                continue
+
+            o1[:, inds] = gram_schmidt(o1[:, inds].real)
         
-    d = np.diag(np.sqrt(evals))
-    if np.linalg.det(o) < 0:
-        o[:, 0] *= -1
+    if np.linalg.det(o1) < 0:
+        o1[:, 0] *= -1
+
+    d = np.sqrt(evals)
+    o2 = np.conj(d)[:,None] * o1.T @ u
+    d = np.diag(d)
 
     if verify:
-
-        #print(np.abs(np.amax(o@o.T-np.eye(n))))
-        #print(np.abs(np.amax(u- o@d@np.conj(d)@o.T@u)))
-        #return np.abs(np.amax(u- o@d@np.conj(d)@o.T@u))
-
         # note somewhat large tolerance values; funny numerical behaviour for n > 75,
         # where n > 75 seems to be a suprisingly precise statement...
         
-        op = np.conj(d) @ o.T @ u
-        assert np.allclose(o @ o.T, np.eye(o.shape[0]), atol=1e-6)
-        assert np.allclose(u @ u.T, o @ d @ d @ o.T, atol=1e-6)
-        assert np.allclose(u, o @ d @ np.conj(d) @ o.T @ u, atol=1e-6)
-        assert np.allclose(op.T @ op, np.eye(o.shape[0]), atol=1e-6), op.T @ op
+        assert np.allclose(o1.imag, 0., atol=1e-6)
+        assert np.allclose(o1 @ o1.T, np.eye(dim), atol=1e-6)
+        assert np.allclose(u @ u.T, o1 @ d @ d @ o1.T, atol=1e-6)
+        assert np.allclose(u, o1 @ d @ np.conj(d) @ o1.T @ u, atol=1e-6)
+        assert np.allclose(o2.T @ o2, np.eye(dim), atol=1e-6), op.T @ op
 
-    return o, d, np.conj(d) @ o.T @ u
+    return o1, d, o2
 
 
 if __name__ == '__main__':
