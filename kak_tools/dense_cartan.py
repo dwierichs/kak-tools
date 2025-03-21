@@ -111,27 +111,31 @@ def embed(op, start, end, n):
 
 
 def recursive_bdi(U, n, num_iter=None, first_is_horizontal=True, validate=True, return_all=False):
-    q = n // 2
-    p = n - q
+    p = n // 2
+    q = n - p
     k11, k12, theta, k21, k22 = bdi(U, p, q, is_horizontal=first_is_horizontal, validate=validate)
     ops = {-1: [(U, 0, n, None)], 0: [(k11, 0, p, "k1"), (k12, p, n, "k1"), (theta, 0, n, "a0"), (k21, 0, p, "k2"), (k22, p, n, "k2")]}
     current_ops = ops[0]
     _iter = 0
+
     decomposed_something = True
     while decomposed_something:
         decomposed_something = False
         new_ops = []
+
         for k, (op, start, end, _type) in enumerate(current_ops):
             _n = end - start
-            if _type.startswith("a") or _n <= 2:
+            if _n <= 1:
+                continue
+            if _type.startswith("a") or _n == 2:
                 # CSA element
                 new_ops.append((op, start, end, _type))
                 if _type == "a0":
                     # Exploit horizontalness
                     break
                 continue
-            _q = _n // 2
-            _p = _n - _q
+            _p = _n // 2
+            _q = _n - _p
             #locs = [(0, _p), (_p, _n)]# if _type == "k1" else [(0, _p), (_p, _n)]
             #for s, e in locs:
             k11, k12, theta, k21, k22 = bdi(op, _p, _q, is_horizontal=False, validate=validate)
@@ -145,10 +149,11 @@ def recursive_bdi(U, n, num_iter=None, first_is_horizontal=True, validate=True, 
                 ]
             )
             decomposed_something = True
-        # Exploit horizontalness
-        new_ops.extend((((-op if _type.startswith("a") else op.T), start, end, _type) for op, start, end, _type in new_ops[:-1][::-1]))
+
         _iter += 1
         if return_all:
+            # Exploit horizontalness
+            new_ops.extend((((-op if _type.startswith("a") else op.T), start, end, _type) for op, start, end, _type in new_ops[:-1][::-1]))
             ops[_iter] = new_ops
         current_ops = new_ops
         if _iter == num_iter:
@@ -156,17 +161,18 @@ def recursive_bdi(U, n, num_iter=None, first_is_horizontal=True, validate=True, 
 
     if return_all:
         return ops
+    current_ops.extend((((-op if _type.startswith("a") else op.T), start, end, _type) for op, start, end, _type in current_ops[:-1][::-1]))
     return current_ops
 
 def angles_to_reducible(theta, s, e, mapping, signs):
-    q = (e - s) // 2
-    p = (e - s) - q
+    p = (e - s) // 2
+    q = (e - s) - p
     op = {mapping[(s+i, s + p+i)]: th / 2 / signs[(s+i, s+p+i)] for i, th in enumerate(theta)}
     return PauliSentence(op)
 
 def angles_to_reducible_str(theta, s, e, mapping):
-    q = (e - s) // 2
-    p = (e - s) - q
+    p = (e - s) // 2
+    q = (e - s) - p
     op = {(pw_sign:=mapping[(s+i, s + p+i)])[0]: th / 2 / pw_sign[1] for i, th in enumerate(theta)}
     return op
 
@@ -194,23 +200,28 @@ def group_matrix_to_reducible(matrix, start, mapping, signs):
 def group_matrix_to_reducible_str(matrix, start, mapping):
     """Map a (SO(n)) group element composed of commuting Given's rotations
     into commuting Pauli rotations on the reducible representation given by mapping & signs."""
-    op = {}
-    seen_ids = set()
-    for i, j in zip(*np.where(matrix)):
-        if i < j:
+    #op = {}
+    #seen_ids = set()
+    #print(matrix.shape)
+    #print(np.where(matrix))
+    assert matrix.shape == (2, 2)
+    #for i, j in zip(*np.where(matrix)):
+        #if i < j:
             #assert i not in seen_ids and j not in seen_ids, f"{matrix}"
-            m_ii = matrix[i, i]
-            m_jj = matrix[j, j]
+    m_ii = matrix[0, 0]
+            #m_jj = matrix[j, j]
             #assert np.isclose((sign := np.sign(m_ii)), np.sign(m_jj)) or np.allclose([m_ii, m_jj], 0.), f"{m_ii}, {m_jj}"
-            angle = np.arcsin(matrix[i, j])
+    angle = np.arcsin(matrix[0, 1])
             #assert angle.dtype == np.float64
-            if np.sign(m_ii) < 0:
-                angle = np.pi - angle
-            pw, sign = mapping[(start + i, start + j)]
-            op[pw] = angle / 2 / sign
-            seen_ids |= {i, j}
+    if np.sign(m_ii) < 0:
+        angle = np.pi - angle
+    pw, sign = mapping[(start + 0, start + 1)]
+    #op[pw] = angle / 2 / sign
+            #seen_ids |= {0, 1}
 
-    return op
+    #print(op)
+    return {pw: angle / 2 / sign}
+    #return op
 
 
 def map_recursive_decomp_to_reducible(
@@ -265,8 +276,8 @@ def map_recursive_decomp_to_reducible(
     return pauli_decomp
 
 def round_angles_to_irreducible_mat(theta, start, end, n, tol):
-    q = (end - start) // 2
-    p = end - start - q
+    p = (end - start) // 2
+    q = end - start - p
     f = abs(p-q)
     r = min(p, q)
     theta = np.array([th if np.abs(np.sin(th)) > tol else 0 for th in theta])
@@ -278,9 +289,7 @@ def round_angles_to_irreducible_mat(theta, start, end, n, tol):
     return embed(a, start, end, n)
 
 def round_mat_to_irreducible_mat(mat, start, end, n, tol):
-    #print(mat)
     k = np.where((np.abs(mat) > tol) + (np.abs(mat) < (1-tol)), mat, np.eye(len(mat)))
-    #print(k)
     return embed(k, start, end, n)
 
 
