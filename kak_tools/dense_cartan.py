@@ -31,28 +31,32 @@ def bdi(u, p, q, is_horizontal=True, validate=True, **kwargs):
         return cossin(u, p=p, q=p, swap_sign=True, separate=True, **kwargs)[1]
     (k11, k12), theta, (k21, k22) = cossin(u, p=p, q=p, swap_sign=True, separate=True)
     if validate:
-        f = abs(p-q)
+        f = abs(p - q)
         r = min(p, q)
         k1 = np.block([[k11, np.zeros((p, q))], [np.zeros((q, p)), k12]])
-        a = np.block([
-            [np.eye(f), np.zeros((f, r)), np.zeros((f, r))],
-            [np.zeros((r, f)), np.diag(np.cos(theta)), np.diag(np.sin(theta))],
-            [np.zeros((r, f)), np.diag(-np.sin(theta)), np.diag(np.cos(theta))],
-        ])
+        a = np.block(
+            [
+                [np.eye(f), np.zeros((f, r)), np.zeros((f, r))],
+                [np.zeros((r, f)), np.diag(np.cos(theta)), np.diag(np.sin(theta))],
+                [np.zeros((r, f)), np.diag(-np.sin(theta)), np.diag(np.cos(theta))],
+            ]
+        )
         k2 = np.block([[k21, np.zeros((p, q))], [np.zeros((q, p)), k22]])
         assert np.allclose(k1 @ a @ k2, u), f"\n{k1}\n{a}\n{k2}\n{k1 @ a @ k2}\n{u}"
 
     if p > q:
-        k11 = np.roll(k11, q-p, axis=1)
-        k21 = np.roll(k21, q-p, axis=0)
+        k11 = np.roll(k11, q - p, axis=1)
+        k21 = np.roll(k21, q - p, axis=0)
 
     if validate:
         k1 = np.block([[k11, np.zeros((p, q))], [np.zeros((q, p)), k12]])
-        a = np.block([
-            [np.diag(np.cos(theta)), np.zeros((r, f)), np.diag(np.sin(theta))],
-            [np.zeros((f, r)), np.eye(f), np.zeros((f, r))],
-            [np.diag(-np.sin(theta)), np.zeros((r, f)), np.diag(np.cos(theta))],
-        ])
+        a = np.block(
+            [
+                [np.diag(np.cos(theta)), np.zeros((r, f)), np.diag(np.sin(theta))],
+                [np.zeros((f, r)), np.eye(f), np.zeros((f, r))],
+                [np.diag(-np.sin(theta)), np.zeros((r, f)), np.diag(np.cos(theta))],
+            ]
+        )
         k2 = np.block([[k21, np.zeros((p, q))], [np.zeros((q, p)), k22]])
         assert np.allclose(k1 @ a @ k2, u), f"\n{k1}\n{a}\n{k2}\n{k1 @ a @ k2}\n{u}"
 
@@ -78,20 +82,22 @@ def bdi(u, p, q, is_horizontal=True, validate=True, **kwargs):
     else:
         d21 = det(k21)
         k21[0] *= d21
-        k22[0] *= d11 * d12 * d21 # d22 must complement to 1
+        k22[0] *= d11 * d12 * d21  # d22 must complement to 1
         theta[0] *= d11 * d12
-        if d11 * d21 <0:
+        if d11 * d21 < 0:
             theta[0] += np.pi
 
     if validate:
-        f = abs(p-q)
+        f = abs(p - q)
         r = min(p, q)
         k1 = np.block([[k11, np.zeros((p, q))], [np.zeros((q, p)), k12]])
-        a = np.block([
-            [np.diag(np.cos(theta)), np.zeros((r, f)), np.diag(np.sin(theta))],
-            [np.zeros((f, r)), np.eye(f), np.zeros((f, r))],
-            [np.diag(-np.sin(theta)), np.zeros((r, f)), np.diag(np.cos(theta))],
-        ])
+        a = np.block(
+            [
+                [np.diag(np.cos(theta)), np.zeros((r, f)), np.diag(np.sin(theta))],
+                [np.zeros((f, r)), np.eye(f), np.zeros((f, r))],
+                [np.diag(-np.sin(theta)), np.zeros((r, f)), np.diag(np.cos(theta))],
+            ]
+        )
         k2 = np.block([[k21, np.zeros((p, q))], [np.zeros((q, p)), k22]])
         if is_horizontal:
             assert np.allclose(k1, k2.T)
@@ -114,7 +120,16 @@ def recursive_bdi(U, n, num_iter=None, first_is_horizontal=True, validate=True, 
     p = n // 2
     q = n - p
     k11, k12, theta, k21, k22 = bdi(U, p, q, is_horizontal=first_is_horizontal, validate=validate)
-    ops = {-1: [(U, 0, n, None)], 0: [(k11, 0, p, "k1"), (k12, p, n, "k1"), (theta, 0, n, "a0"), (k21, 0, p, "k2"), (k22, p, n, "k2")]}
+    ops = {
+        -1: [(U, 0, n, None)],
+        0: [
+            (k11, 0, p, "k1"),
+            (k12, p, n, "k1"),
+            (theta, 0, n, "a0"),
+            (k21, 0, p, "k2"),
+            (k22, p, n, "k2"),
+        ],
+    }
     current_ops = ops[0]
     _iter = 0
 
@@ -136,8 +151,8 @@ def recursive_bdi(U, n, num_iter=None, first_is_horizontal=True, validate=True, 
                 continue
             _p = _n // 2
             _q = _n - _p
-            #locs = [(0, _p), (_p, _n)]# if _type == "k1" else [(0, _p), (_p, _n)]
-            #for s, e in locs:
+            # locs = [(0, _p), (_p, _n)]# if _type == "k1" else [(0, _p), (_p, _n)]
+            # for s, e in locs:
             k11, k12, theta, k21, k22 = bdi(op, _p, _q, is_horizontal=False, validate=validate)
             new_ops.extend(
                 [
@@ -153,7 +168,12 @@ def recursive_bdi(U, n, num_iter=None, first_is_horizontal=True, validate=True, 
         _iter += 1
         if return_all:
             # Exploit horizontalness
-            new_ops.extend((((-op if _type.startswith("a") else op.T), start, end, _type) for op, start, end, _type in new_ops[:-1][::-1]))
+            new_ops.extend(
+                (
+                    ((-op if _type.startswith("a") else op.T), start, end, _type)
+                    for op, start, end, _type in new_ops[:-1][::-1]
+                )
+            )
             ops[_iter] = new_ops
         current_ops = new_ops
         if _iter == num_iter:
@@ -161,19 +181,32 @@ def recursive_bdi(U, n, num_iter=None, first_is_horizontal=True, validate=True, 
 
     if return_all:
         return ops
-    current_ops.extend((((-op if _type.startswith("a") else op.T), start, end, _type) for op, start, end, _type in current_ops[:-1][::-1]))
+    current_ops.extend(
+        (
+            ((-op if _type.startswith("a") else op.T), start, end, _type)
+            for op, start, end, _type in current_ops[:-1][::-1]
+        )
+    )
     return current_ops
+
 
 def angles_to_reducible(theta, s, e, mapping, signs):
     p = (e - s) // 2
     q = (e - s) - p
-    op = {mapping[(s+i, s + p+i)]: th / 2 / signs[(s+i, s+p+i)] for i, th in enumerate(theta)}
+    op = {
+        mapping[(s + i, s + p + i)]: th / 2 / signs[(s + i, s + p + i)]
+        for i, th in enumerate(theta)
+    }
     return PauliSentence(op)
+
 
 def angles_to_reducible_str(theta, s, e, mapping):
     p = (e - s) // 2
     q = (e - s) - p
-    op = {(pw_sign:=mapping[(s+i, s + p+i)])[0]: th / 2 / pw_sign[1] for i, th in enumerate(theta)}
+    op = {
+        (pw_sign := mapping[(s + i, s + p + i)])[0]: th / 2 / pw_sign[1]
+        for i, th in enumerate(theta)
+    }
     return op
 
 
@@ -187,7 +220,9 @@ def group_matrix_to_reducible(matrix, start, mapping, signs):
             assert i not in seen_ids and j not in seen_ids, f"{matrix}"
             m_ii = matrix[i, i]
             m_jj = matrix[j, j]
-            assert np.isclose((sign := np.sign(m_ii)), np.sign(m_jj)) or np.allclose([m_ii, m_jj], 0.), f"{m_ii}, {m_jj}"
+            assert np.isclose((sign := np.sign(m_ii)), np.sign(m_jj)) or np.allclose(
+                [m_ii, m_jj], 0.0
+            ), f"{m_ii}, {m_jj}"
             angle = np.arcsin(matrix[i, j])
             assert angle.dtype == np.float64
             if sign < 0:
@@ -197,31 +232,32 @@ def group_matrix_to_reducible(matrix, start, mapping, signs):
 
     return PauliSentence(op)
 
+
 def group_matrix_to_reducible_str(matrix, start, mapping):
     """Map a (SO(n)) group element composed of commuting Given's rotations
     into commuting Pauli rotations on the reducible representation given by mapping & signs."""
-    #op = {}
-    #seen_ids = set()
-    #print(matrix.shape)
-    #print(np.where(matrix))
+    # op = {}
+    # seen_ids = set()
+    # print(matrix.shape)
+    # print(np.where(matrix))
     assert matrix.shape == (2, 2)
-    #for i, j in zip(*np.where(matrix)):
-        #if i < j:
-            #assert i not in seen_ids and j not in seen_ids, f"{matrix}"
+    # for i, j in zip(*np.where(matrix)):
+    # if i < j:
+    # assert i not in seen_ids and j not in seen_ids, f"{matrix}"
     m_ii = matrix[0, 0]
-            #m_jj = matrix[j, j]
-            #assert np.isclose((sign := np.sign(m_ii)), np.sign(m_jj)) or np.allclose([m_ii, m_jj], 0.), f"{m_ii}, {m_jj}"
+    # m_jj = matrix[j, j]
+    # assert np.isclose((sign := np.sign(m_ii)), np.sign(m_jj)) or np.allclose([m_ii, m_jj], 0.), f"{m_ii}, {m_jj}"
     angle = np.arcsin(matrix[0, 1])
-            #assert angle.dtype == np.float64
+    # assert angle.dtype == np.float64
     if np.sign(m_ii) < 0:
         angle = np.pi - angle
     pw, sign = mapping[(start + 0, start + 1)]
-    #op[pw] = angle / 2 / sign
-            #seen_ids |= {0, 1}
+    # op[pw] = angle / 2 / sign
+    # seen_ids |= {0, 1}
 
-    #print(op)
+    # print(op)
     return {pw: angle / 2 / sign}
-    #return op
+    # return op
 
 
 def map_recursive_decomp_to_reducible(
@@ -275,21 +311,25 @@ def map_recursive_decomp_to_reducible(
 
     return pauli_decomp
 
+
 def round_angles_to_irreducible_mat(theta, start, end, n, tol):
     p = (end - start) // 2
     q = end - start - p
-    f = abs(p-q)
+    f = abs(p - q)
     r = min(p, q)
     theta = np.array([th if np.abs(np.sin(th)) > tol else 0 for th in theta])
-    a = np.block([
-        [np.diag(np.cos(theta)), np.zeros((r, f)), np.diag(np.sin(theta))],
-        [np.zeros((f, r)), np.eye(f), np.zeros((f, r))],
-        [np.diag(-np.sin(theta)), np.zeros((r, f)), np.diag(np.cos(theta))],
-    ])
+    a = np.block(
+        [
+            [np.diag(np.cos(theta)), np.zeros((r, f)), np.diag(np.sin(theta))],
+            [np.zeros((f, r)), np.eye(f), np.zeros((f, r))],
+            [np.diag(-np.sin(theta)), np.zeros((r, f)), np.diag(np.cos(theta))],
+        ]
+    )
     return embed(a, start, end, n)
 
+
 def round_mat_to_irreducible_mat(mat, start, end, n, tol):
-    k = np.where((np.abs(mat) > tol) + (np.abs(mat) < (1-tol)), mat, np.eye(len(mat)))
+    k = np.where((np.abs(mat) > tol) + (np.abs(mat) < (1 - tol)), mat, np.eye(len(mat)))
     return embed(k, start, end, n)
 
 

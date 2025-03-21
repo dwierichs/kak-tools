@@ -17,6 +17,7 @@ from kak_tools import (
 )
 import time
 
+
 def minimal_workflow_tfXY(n, t0, coefficients="random"):
     """Run the fixed-depth Hamiltonian simulation compilation algorithm in its minimal
     form, i.e., with the highest degree of hardcoded mappings and analytical pre-computation."""
@@ -35,63 +36,72 @@ def minimal_workflow_tfXY(n, t0, coefficients="random"):
     )
     return pauli_decomp
 
+
 def complete_workflow_tfXY(n, t0, coefficients="random"):
     H, generators, coeffs = make_tfXY_hamiltonian_qubits(n, coefficients="random")
 
-    #start = time.process_time()
+    # start = time.process_time()
     algebra = lie_closure_pauli_words(generators, verbose=False)
-    #end = time.process_time()
-    #print(f"Close algebra: {end-start}")
+    # end = time.process_time()
+    # print(f"Close algebra: {end-start}")
 
-    n_so = 2 * n # The "n" in so(n)
-    so_dim = (n_so**2-n_so) // 2
+    n_so = 2 * n  # The "n" in so(n)
+    so_dim = (n_so**2 - n_so) // 2
 
-    #start = time.process_time()
-    mapping, signs = map_simple_to_irrep(algebra, horizontal_ops=generators, n=n_so, invol_type="BDI")
+    # start = time.process_time()
+    mapping, signs = map_simple_to_irrep(
+        algebra, horizontal_ops=generators, n=n_so, invol_type="BDI"
+    )
     H_irrep = irrep_dot(coeffs, generators, mapping, signs, n=n_so, invol_type="BDI")
-    #end = time.process_time()
-    #print(f"Map algebra and H: {end-start}")
+    # end = time.process_time()
+    # print(f"Map algebra and H: {end-start}")
 
-    #start = time.process_time()
+    # start = time.process_time()
     U = expm(t0 * H_irrep)
     recursive_decomp = recursive_bdi(U, n_so, validate=False, return_all=False)
-    #end = time.process_time()
-    #print(f"Matrix exp and recursive decomp: {end-start}")
+    # end = time.process_time()
+    # print(f"Matrix exp and recursive decomp: {end-start}")
 
-    #start = time.process_time()
-    pauli_decomp = map_recursive_decomp_to_reducible(recursive_decomp, mapping, signs, time=t0, validate=False)
-    #end = time.process_time()
-    #print(f"Mapping decomp back: {end-start}")
+    # start = time.process_time()
+    pauli_decomp = map_recursive_decomp_to_reducible(
+        recursive_decomp, mapping, signs, time=t0, validate=False
+    )
+    # end = time.process_time()
+    # print(f"Mapping decomp back: {end-start}")
     return pauli_decomp
 
 
 def workflow_tfXY_known_algebra(n, t0, coefficients="random"):
     H, generators, coeffs = make_tfXY_hamiltonian_qubits(n, coefficients="random")
 
-    #start = time.process_time()
+    # start = time.process_time()
     algebra = make_so_2n(n)
-    #end = time.process_time()
-    #print(f"Close algebra: {end-start}")
+    # end = time.process_time()
+    # print(f"Close algebra: {end-start}")
 
-    n_so = 2 * n # The "n" in so(n)
-    so_dim = (n_so**2-n_so) // 2
+    n_so = 2 * n  # The "n" in so(n)
+    so_dim = (n_so**2 - n_so) // 2
 
-    #start = time.process_time()
-    mapping, signs = map_simple_to_irrep(algebra, horizontal_ops=generators, n=n_so, invol_type="BDI")
+    # start = time.process_time()
+    mapping, signs = map_simple_to_irrep(
+        algebra, horizontal_ops=generators, n=n_so, invol_type="BDI"
+    )
     H_irrep = irrep_dot(coeffs, generators, mapping, signs, n=n_so, invol_type="BDI")
-    #end = time.process_time()
-    #print(f"Map algebra and H: {end-start}")
+    # end = time.process_time()
+    # print(f"Map algebra and H: {end-start}")
 
-    #start = time.process_time()
+    # start = time.process_time()
     U = expm(t0 * H_irrep)
     recursive_decomp = recursive_bdi(U, n_so, validate=False, return_all=False)
-    #end = time.process_time()
-    #print(f"Matrix exp and recursive decomp: {end-start}")
+    # end = time.process_time()
+    # print(f"Matrix exp and recursive decomp: {end-start}")
 
-    #start = time.process_time()
-    pauli_decomp = map_recursive_decomp_to_reducible(recursive_decomp, mapping, signs, time=t0, validate=False)
-    #end = time.process_time()
-    #print(f"Mapping decomp back: {end-start}")
+    # start = time.process_time()
+    pauli_decomp = map_recursive_decomp_to_reducible(
+        recursive_decomp, mapping, signs, time=t0, validate=False
+    )
+    # end = time.process_time()
+    # print(f"Mapping decomp back: {end-start}")
     return pauli_decomp
 
 
@@ -102,4 +112,3 @@ def diagonalization_tfXY(n, t0, coefficients="random"):
     theta = bdi(U, n, n, is_horizontal=True, validate=False, compute_u=False, compute_vh=False)
 
     return np.array(theta) / (2 * t0)
-
