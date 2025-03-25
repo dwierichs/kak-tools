@@ -5,4 +5,4 @@ jaxlib==0.4.28
 matplotlib
 pytest
 jupyter
-
+black

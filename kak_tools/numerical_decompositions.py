@@ -4,9 +4,10 @@ from scipy.linalg import eig, cossin, det, schur
 
 _validate_default = True
 
+
 def real_eig(mat):
     """Compute real eigenvectors of a symmetric matrix A.T=A."""
-    #n = mat.shape[0] // 2
+    # n = mat.shape[0] // 2
     eigvals, eigvecs = eig(mat)
     new_eigvals = np.zeros_like(eigvals)
     new_eigvecs = np.zeros_like(eigvecs)
@@ -26,26 +27,26 @@ def real_eig(mat):
         conj_phase = alt_vec[non_zero_idx] / vec[non_zero_idx]
         if np.allclose(alt_vec, conj_phase * vec):
             vec *= np.sqrt(conj_phase)
-            assert np.allclose(vec.imag, 0.)
+            assert np.allclose(vec.imag, 0.0)
             vec = vec.real
             new_eigvecs[:, new_eig_idx] = vec
             new_eigvals[new_eig_idx] = eigvals[eig_idx]
             new_eig_idx += 1
             # Remove used eigvec and project out contribution of remaining eigvecs in directions
-            # of vec 
+            # of vec
             eigvecs = eigvecs[:, 1:]
             eigvecs -= np.outer(vec, vec.conj() @ eigvecs)
         else:
-            overlap = np.dot(vec, vec) 
+            overlap = np.dot(vec, vec)
             new_vec = (-0.5 * np.angle(overlap)) * vec
             vec1 = new_vec.real / norm(new_vec.real)
             vec2 = new_vec.imag / norm(new_vec.imag)
             new_eigvecs[:, new_eig_idx] = vec1
-            new_eigvecs[:, new_eig_idx+1] = vec2
+            new_eigvecs[:, new_eig_idx + 1] = vec2
             new_eigvals[new_eig_idx] = new_eigvals[new_eig_idx + 1] = eigvals[eig_idx]
             new_eig_idx += 2
             # Remove used eigvec and project out contribution of remaining eigvecs in directions
-            # of vec1 and vec2 
+            # of vec1 and vec2
             eigvecs = eigvecs[:, 1:]
             eigvecs -= np.outer(vec1, vec1.conj() @ eigvecs)
             eigvecs -= np.outer(vec2, vec2.conj() @ eigvecs)
@@ -53,7 +54,7 @@ def real_eig(mat):
         eig_idx += 1
 
     return new_eigvals, new_eigvecs
-    
+
 
 def gram_schmidt(vecs):
 
@@ -68,9 +69,7 @@ def gram_schmidt(vecs):
         vec = vecs[:, i]
 
         for j in range(i):
-            proj = np.dot(orthogonalised[:, j].conj(), vec) / (
-                norm(orthogonalised[:, j]) ** 2
-            )
+            proj = np.dot(orthogonalised[:, j].conj(), vec) / (norm(orthogonalised[:, j]) ** 2)
             vec = vec - proj * orthogonalised[:, j]
 
         _norm = norm(vec)
@@ -124,6 +123,7 @@ def _ai_kak(u, validate=_validate_default):
         assert np.allclose(o2.T @ o2, np.eye(dim), atol=1e-6)
 
     return o1, d, o2
+
 
 def ai_kak(u, validate=_validate_default):
 
@@ -218,37 +218,37 @@ def sympl_real_eig_diii(mat, J):
         conj_phase = vec2[non_zero_idx] / vec0[non_zero_idx]
         if np.allclose(vec2, conj_phase * vec0):
             vec0 *= np.sqrt(conj_phase)
-            assert np.allclose(vec0.imag, 0.)
+            assert np.allclose(vec0.imag, 0.0)
             vec0 = vec0.real
             vecs = [J @ vec0, vec0]
 
             # store real symplectic eigenvectors
-            assert np.isclose(eigvals[eig_idx], 1.) or np.isclose(eigvals[eig_idx], -1.)
+            assert np.isclose(eigvals[eig_idx], 1.0) or np.isclose(eigvals[eig_idx], -1.0)
             if eigvals[eig_idx] > 0:
                 plus_one_eigvecs.extend(vecs)
             else:
                 minus_one_eigvecs.extend(vecs)
             remove_vecs = vecs
         else:
-            overlap = np.dot(vec0, vec0) 
+            overlap = np.dot(vec0, vec0)
             new_vec = (-0.5 * np.angle(overlap)) * vec0
             vec2 = new_vec.real / norm(new_vec.real)
             vec3 = new_vec.imag / norm(new_vec.imag)
             vec0 = J @ vec2
             vec1 = J @ vec3
-            #quad = [J @ vec2, J @ vec3, vec2, vec3]
+            # quad = [J @ vec2, J @ vec3, vec2, vec3]
             quadruples[:, 2 * d] = vec0
-            quadruples[:, 2 * d+1] = vec1
-            quadruples[:, 2 * d+n] = vec2
-            quadruples[:, 2 * d+n+1] = vec3
-            quadruple_eigvals[2 * d] = quadruple_eigvals[2 * d+n+1] = eigvals[eig_idx]
-            quadruple_eigvals[2 * d+1] = quadruple_eigvals[2 * d+n] = np.conj(eigvals[eig_idx])
+            quadruples[:, 2 * d + 1] = vec1
+            quadruples[:, 2 * d + n] = vec2
+            quadruples[:, 2 * d + n + 1] = vec3
+            quadruple_eigvals[2 * d] = quadruple_eigvals[2 * d + n + 1] = eigvals[eig_idx]
+            quadruple_eigvals[2 * d + 1] = quadruple_eigvals[2 * d + n] = np.conj(eigvals[eig_idx])
 
             d += 1
             remove_vecs = [vec0, vec1, vec2, vec3]
 
         # Remove used eigvec and project out contribution of remaining eigvecs in directions
-        # of single_vec 
+        # of single_vec
         eigvecs = eigvecs[:, 1:]
         for _vec in remove_vecs:
             eigvecs -= np.outer(_vec, _vec.conj() @ eigvecs)
@@ -263,28 +263,29 @@ def sympl_real_eig_diii(mat, J):
     print(quadruples.shape)
     if f > 0:
         minus_one_eigvecs = np.stack(minus_one_eigvecs)
-        quadruples[:, 2*d: 2*d+f] = minus_one_eigvecs[::2].T
-        quadruples[:, 2*d+n: 2*d+f+n] = minus_one_eigvecs[1::2].T
-        main_diag[2*d:2*d+f] = -1
-        main_diag[2*d+n:2*d+f+n] = -1
-    if n - (2*d + f) > 0:
+        quadruples[:, 2 * d : 2 * d + f] = minus_one_eigvecs[::2].T
+        quadruples[:, 2 * d + n : 2 * d + f + n] = minus_one_eigvecs[1::2].T
+        main_diag[2 * d : 2 * d + f] = -1
+        main_diag[2 * d + n : 2 * d + f + n] = -1
+    if n - (2 * d + f) > 0:
         plus_one_eigvecs = np.stack(plus_one_eigvecs)
-        quadruples[:, 2*d+f: n] = plus_one_eigvecs[::2].T
-        quadruples[:, 2*d+n+f:2 * n] = plus_one_eigvecs[1::2].T
-        main_diag[2*d+f:n] = 1
-        main_diag[2*d+f+n:2*n] = 1
+        quadruples[:, 2 * d + f : n] = plus_one_eigvecs[::2].T
+        quadruples[:, 2 * d + n + f : 2 * n] = plus_one_eigvecs[1::2].T
+        main_diag[2 * d + f : n] = 1
+        main_diag[2 * d + f + n : 2 * n] = 1
 
-    upper_diag = np.zeros(2*n)
+    upper_diag = np.zeros(2 * n)
     upper_diag = -np.imag(quadruple_eigvals)
-    if n%2:
+    if n % 2:
         upper_diag[1:n:2] = 0
-        upper_diag[n+1::2] = 0
+        upper_diag[n + 1 :: 2] = 0
     else:
         upper_diag[1::2] = 0
-    upper_diag = upper_diag[:2*n-1]
+    upper_diag = upper_diag[: 2 * n - 1]
     mu = np.diag(main_diag) + np.diag(upper_diag, k=1) - np.diag(upper_diag, k=-1)
 
     return mu, quadruples
+
 
 def sympl_real_eig_ci(mat, J):
     assert mat.shape[0] % 2 == 0
@@ -292,12 +293,12 @@ def sympl_real_eig_ci(mat, J):
     eigvals, eigvecs = eig(mat)
     new_eigvecs = np.zeros_like(eigvecs)
     new_eigvals = np.zeros_like(eigvals)
-    #minus_one_eigvecs = []
-    #plus_one_eigvecs = []
+    # minus_one_eigvecs = []
+    # plus_one_eigvecs = []
 
     eig_idx = 0
     new_eig_idx = 0
-    #d = 0
+    # d = 0
     while eigvecs.shape[1]:
         vec0 = eigvecs[:, 0]
         _norm = norm(vec0)
@@ -312,36 +313,36 @@ def sympl_real_eig_ci(mat, J):
         conj_phase = vec2[non_zero_idx] / vec0[non_zero_idx]
         if np.allclose(vec2, conj_phase * vec0):
             vec0 *= np.sqrt(conj_phase)
-            assert np.allclose(vec0.imag, 0.)
+            assert np.allclose(vec0.imag, 0.0)
             vec0 = vec0.real
             vec1 = J @ vec0
 
             # store real symplectic eigenvectors
             new_eigvecs[:, new_eig_idx] = vec1
-            new_eigvecs[:, new_eig_idx+n] = vec0
+            new_eigvecs[:, new_eig_idx + n] = vec0
             new_eigvals[new_eig_idx] = np.conj(eigvals[eig_idx])
-            new_eigvals[new_eig_idx+n] = eigvals[eig_idx]
+            new_eigvals[new_eig_idx + n] = eigvals[eig_idx]
             remove_vecs = [vec0, vec1]
             new_eig_idx += 1
         else:
-            overlap = np.dot(vec0, vec0) 
+            overlap = np.dot(vec0, vec0)
             new_vec = (-0.5 * np.angle(overlap)) * vec0
             vec2 = new_vec.real / norm(new_vec.real)
             vec3 = new_vec.imag / norm(new_vec.imag)
             vec0 = J @ vec2
             vec1 = J @ vec3
             new_eigvecs[:, new_eig_idx] = vec0
-            new_eigvecs[:, new_eig_idx+1] = vec1
-            new_eigvecs[:, new_eig_idx+n] = vec2
-            new_eigvecs[:, new_eig_idx+n+1] = vec3
-            new_eigvals[new_eig_idx] = new_eigvals[new_eig_idx+1] = np.conj(eigvals[eig_idx])
-            new_eigvals[new_eig_idx+n] = new_eigvals[new_eig_idx+n+1] = eigvals[eig_idx]
+            new_eigvecs[:, new_eig_idx + 1] = vec1
+            new_eigvecs[:, new_eig_idx + n] = vec2
+            new_eigvecs[:, new_eig_idx + n + 1] = vec3
+            new_eigvals[new_eig_idx] = new_eigvals[new_eig_idx + 1] = np.conj(eigvals[eig_idx])
+            new_eigvals[new_eig_idx + n] = new_eigvals[new_eig_idx + n + 1] = eigvals[eig_idx]
 
             new_eig_idx += 2
             remove_vecs = [vec0, vec1, vec2, vec3]
 
         # Remove used eigvec and project out contribution of remaining eigvecs in directions
-        # of single_vec 
+        # of single_vec
         eigvecs = eigvecs[:, 1:]
         for _vec in remove_vecs:
             eigvecs -= np.outer(_vec, _vec.conj() @ eigvecs)
@@ -349,6 +350,7 @@ def sympl_real_eig_ci(mat, J):
         eig_idx += 1
 
     return new_eigvals, new_eigvecs
+
 
 def J_n(n):
     eye = np.eye(n)
@@ -486,27 +488,34 @@ def bdi_kak(o, p, q, validate=_validate_default):
 
     return k1, f, k2
 
+
 def schur_sqrt(u):
     dim = u.shape[0]
     if dim % 2 == 1:
-        idx = np.where(np.isclose(np.diag(u), 1.))[0][0]
-        sliced_u = np.block([[u[:idx, :idx], u[:idx, idx+1:]],[u[idx+1:, :idx], u[idx+1:, idx+1:]]])
+        idx = np.where(np.isclose(np.diag(u), 1.0))[0][0]
+        sliced_u = np.block(
+            [[u[:idx, :idx], u[:idx, idx + 1 :]], [u[idx + 1 :, :idx], u[idx + 1 :, idx + 1 :]]]
+        )
         sl_sqrt = schur_sqrt(sliced_u)
-        sqrt = np.block([
-            [sl_sqrt[:idx, :idx], np.zeros((idx, 1)), sl_sqrt[:idx, idx:]],
-            [np.zeros((1, idx)), 1., np.zeros((1, dim-idx-1))],
-            [sl_sqrt[idx:, :idx], np.zeros((dim-idx-1, 1)), sl_sqrt[idx:, idx:]],
-        ])
+        sqrt = np.block(
+            [
+                [sl_sqrt[:idx, :idx], np.zeros((idx, 1)), sl_sqrt[:idx, idx:]],
+                [np.zeros((1, idx)), 1.0, np.zeros((1, dim - idx - 1))],
+                [sl_sqrt[idx:, :idx], np.zeros((dim - idx - 1, 1)), sl_sqrt[idx:, idx:]],
+            ]
+        )
         return sqrt
     sqrt = np.copy(u)
     iY = np.array([[0, 1], [-1, 0]])
-    for i in range(0, dim-1, 2):
-        if np.isclose(u[i, i+1], 0.):
+    for i in range(0, dim - 1, 2):
+        if np.isclose(u[i, i + 1], 0.0):
             if u[i, i] < 0:
-                sqrt[i:i+2, i:i+2] = iY
+                sqrt[i : i + 2, i : i + 2] = iY
         else:
-            theta = np.arctan2(u[i, i+1], u[i, i]) / 2
-            sqrt[i:i+2, i:i+2] = np.array([[np.cos(theta), np.sin(theta)], [-np.sin(theta), np.cos(theta)]])
+            theta = np.arctan2(u[i, i + 1], u[i, i]) / 2
+            sqrt[i : i + 2, i : i + 2] = np.array(
+                [[np.cos(theta), np.sin(theta)], [-np.sin(theta), np.cos(theta)]]
+            )
 
     return sqrt
 
@@ -520,11 +529,11 @@ def diii_kak(o, validate=_validate_default):
     Delta = o @ J @ o.T @ J.T
     # A_squared is mu^2\oplus mu^2^T
     A_squared, u1 = sympl_real_eig_diii(Delta, J)
-    
+
     mu_squared = A_squared[:n, :n]
     print(np.round(A_squared, 3))
     assert np.allclose(mu_squared, A_squared[n:, n:].T)
-    assert np.allclose(A_squared[n:, :n], 0.) and np.allclose(A_squared[:n, n:], 0.)
+    assert np.allclose(A_squared[n:, :n], 0.0) and np.allclose(A_squared[:n, n:], 0.0)
     mu = schur_sqrt(mu_squared)
     # A is mu \oplus mu^T
     A = np.block([[mu, np.zeros_like(mu)], [np.zeros_like(mu), mu.T]])
@@ -537,7 +546,7 @@ def diii_kak(o, validate=_validate_default):
         print(np.round(J @ u1.conj() @ J.T, 3))
         assert np.allclose(J @ u1.conj() @ J.T, u1, atol=1e-6)  # u1 is symplectic
         assert np.allclose(A @ A, A_squared, atol=1e-6)
-        assert np.allclose(u1 @ A_squared @ u1.conj().T, Delta, atol=1e-6) # u1 is a Schur decomp.
+        assert np.allclose(u1 @ A_squared @ u1.conj().T, Delta, atol=1e-6)  # u1 is a Schur decomp.
         assert np.allclose(J @ A.conj() @ J.T, A.T, atol=1e-6)  # A is skew-symplectic
         assert np.allclose(Delta, u1 @ A @ A @ u1.conj().T, atol=1e-6)  # u1 is a horizontal CD
 
@@ -550,6 +559,7 @@ def diii_kak(o, validate=_validate_default):
 
     return u1, A, u2
 
+
 def ci_kak(s, validate=_validate_default):
     dim = s.shape[0]
     assert dim % 2 == 0
@@ -558,7 +568,7 @@ def ci_kak(s, validate=_validate_default):
 
     Delta = s @ s.T
     D_slash_squared, u1 = sympl_real_eig_ci(Delta, J)
-    
+
     assert np.allclose(D_slash_squared[:n].conj(), D_slash_squared[n:])
     D = np.sqrt(D_slash_squared[:n])
     A = np.diag(np.concatenate([D, D.conj()]))
@@ -568,7 +578,9 @@ def ci_kak(s, validate=_validate_default):
         assert np.allclose(u1.imag, 0.0)  # u1 is real
         assert np.allclose(u1 @ u1.conj().T, np.eye(dim), atol=1e-6)  # u1 is unitary
         assert np.allclose(J @ u1.conj() @ J.T, u1, atol=1e-6)  # u1 is symplectic
-        assert np.allclose(u1 @ np.diag(D_slash_squared) @ u1.conj().T, Delta, atol=1e-6) # u1 is an EVD
+        assert np.allclose(
+            u1 @ np.diag(D_slash_squared) @ u1.conj().T, Delta, atol=1e-6
+        )  # u1 is an EVD
 
         assert np.allclose(J @ A.conj() @ J.T, A, atol=1e-6)  # A is symplectic
         assert np.allclose(Delta, u1 @ A @ A @ u1.conj().T, atol=1e-6)  # u1 is a horizontal CD
@@ -581,6 +593,7 @@ def ci_kak(s, validate=_validate_default):
         assert np.allclose(s, u1 @ A @ u2, atol=1e-6)  # u1 and u2 make a KAK decomp
 
     return u1, A, u2
+
 
 def symplectify(x, J):
     n = x.shape[0] // 2
@@ -595,7 +608,7 @@ def symplectify(x, J):
         vec0 /= _norm
         vec1 = J @ vec0.conj()
         new_x[:, idx] = vec1
-        new_x[:, idx+n] = vec0
+        new_x[:, idx + n] = vec0
         x = x[:, 1:]
         x -= np.outer(vec0, vec0.conj() @ x)
         x -= np.outer(vec1, vec1.conj() @ x)
@@ -603,60 +616,67 @@ def symplectify(x, J):
 
     return new_x
 
+
 def cii_kak(s, p, q, validate=_validate_default):
-    #assert p >= q
+    # assert p >= q
     n = p + q
     Z = lambda a, b: np.zeros((a, b))
     I = np.eye
     J = J_n(n)
 
     # to be modded
-    chi = np.block([
-        [I(p), Z(p, p), Z(p, q), Z(p, q)],
-        [Z(q, p), Z(q, p), I(q), Z(q, q)],
-        [Z(p, p), I(p), Z(p, q), Z(p, q)],
-        [Z(q, p), Z(q, p), Z(q, q), I(q)],
-    ])
+    chi = np.block(
+        [
+            [I(p), Z(p, p), Z(p, q), Z(p, q)],
+            [Z(q, p), Z(q, p), I(q), Z(q, q)],
+            [Z(p, p), I(p), Z(p, q), Z(p, q)],
+            [Z(q, p), Z(q, p), Z(q, q), I(q)],
+        ]
+    )
 
     d = abs(p - q)
     r = min(p, q)
     # to be modded
-    if p>=q:
-        eta = np.block([
-            [I(r), Z(r, r), Z(r, d), Z(r, n)],
-            [Z(d, r), Z(d, r), I(d), Z(d, n)],
-            [Z(r, r), I(r), Z(r, d), Z(r, n)],
-            [Z(n, r), Z(n, r), Z(n, d), I(n)],
-        ])
+    if p >= q:
+        eta = np.block(
+            [
+                [I(r), Z(r, r), Z(r, d), Z(r, n)],
+                [Z(d, r), Z(d, r), I(d), Z(d, n)],
+                [Z(r, r), I(r), Z(r, d), Z(r, n)],
+                [Z(n, r), Z(n, r), Z(n, d), I(n)],
+            ]
+        )
     else:
-        eta = np.block([
-            [I(n), Z(n, d), Z(n, r), Z(n, r)],
-            [Z(r, n), Z(r, d), I(r), Z(r, r)],
-            [Z(d, n), I(d), Z(d, r), Z(d, r)],
-            [Z(r, n), Z(r, d), Z(r, r), I(r)],
-        ])
-    #print(f"{chi.shape=}")
-    #print(f"{eta.shape=}")
-    #print(f"{s.shape=}")
-    #print(eta)
-    #print(chi)
-    
+        eta = np.block(
+            [
+                [I(n), Z(n, d), Z(n, r), Z(n, r)],
+                [Z(r, n), Z(r, d), I(r), Z(r, r)],
+                [Z(d, n), I(d), Z(d, r), Z(d, r)],
+                [Z(r, n), Z(r, d), Z(r, r), I(r)],
+            ]
+        )
+    # print(f"{chi.shape=}")
+    # print(f"{eta.shape=}")
+    # print(f"{s.shape=}")
+    # print(eta)
+    # print(chi)
+
     sprime = eta.T @ chi.T @ s @ chi @ eta
     u1, f0, u2 = aiii_kak(sprime, 2 * p, 2 * q, validate=False)
-    #print(f"{f0=}")
+    # print(f"{f0=}")
     v1 = chi @ eta @ u1 @ eta.T @ chi.T
     v2 = chi @ eta @ u2 @ eta.T @ chi.T
     fbar = chi @ eta @ f0 @ eta.T @ chi.T
-    #print(fbar)
+    # print(fbar)
     K_pq = np.diag(np.concatenate([np.ones(p), -np.ones(q), np.ones(p), -np.ones(q)]))
     if validate:
-        assert np.allclose(fbar.imag, 0.)
+        assert np.allclose(fbar.imag, 0.0)
         assert np.allclose(fbar @ fbar.T, np.eye(2 * n))
         # to be modded
-        assert np.allclose(fbar[:r,:r], fbar[r+d:n, r+d:n])
-        assert np.allclose(fbar[:r,r+d:n], -fbar[r+d:n, :r])
-        assert np.allclose(fbar[n:n+r,n:n+r], fbar[n+r+d:2*n, n+r+d:2*n])
-        assert np.allclose(fbar[n:n+r,n+r+d:2*n], -fbar[n+r+d:2*n, n:n+r])
+        assert np.allclose(fbar[:r, :r], fbar[r + d : n, r + d : n])
+        assert np.allclose(fbar[:r, r + d : n], -fbar[r + d : n, :r])
+        assert np.allclose(fbar[n : n + r, n : n + r], fbar[n + r + d : 2 * n, n + r + d : 2 * n])
+        assert np.allclose(fbar[n : n + r, n + r + d : 2 * n], -fbar[n + r + d : 2 * n, n : n + r])
         assert np.allclose(K_pq @ v1 @ K_pq, v1)
         assert np.allclose(K_pq @ v2 @ K_pq, v2)
         assert np.allclose(K_pq @ fbar @ K_pq, fbar.T)
@@ -665,18 +685,18 @@ def cii_kak(s, p, q, validate=_validate_default):
     print(np.round(fbar, 2))
     v1 = symplectify(v1, J)
     v2 = symplectify(v2, J)
-    #for i in range(n):
-        #cand = J @ v1[:,n+i].conj()
-        #idx = np.where(cand)[0][0]
-        #phase = v1[idx, i] / cand[idx]
-        #print(np.allclose(v1[:, i], cand * phase))
-        #v1[:, i] = J @ v1[:,n+i].conj()
-        #v2[i] = v2[n+i].conj() @ J.T
+    # for i in range(n):
+    # cand = J @ v1[:,n+i].conj()
+    # idx = np.where(cand)[0][0]
+    # phase = v1[idx, i] / cand[idx]
+    # print(np.allclose(v1[:, i], cand * phase))
+    # v1[:, i] = J @ v1[:,n+i].conj()
+    # v2[i] = v2[n+i].conj() @ J.T
     fring = v1.conj().T @ s @ v2.conj().T
-    #assert np.allclose(v1.conj().T @ v1, np.eye(2*n))
+    # assert np.allclose(v1.conj().T @ v1, np.eye(2*n))
     print(v1.conj().T @ v1)
     print(np.round(fring, 2))
-    #assert np.allclose(v2.conj().T @ v2, np.eye(2*n))
+    # assert np.allclose(v2.conj().T @ v2, np.eye(2*n))
 
     return v1, fring, v2
 
@@ -685,7 +705,7 @@ def a_kak(u, validate=_validate_default):
     dim = u.shape[0]
     assert dim % 2 == 0
     n = dim // 2
-    assert np.allclose(u[:n, n:], 0.) and np.allclose(u[n:, :n], 0.)
+    assert np.allclose(u[:n, n:], 0.0) and np.allclose(u[n:, :n], 0.0)
 
     delta = u[:n, :n] @ u[n:, n:].conj().T
     D_squared, u1 = eig(delta)
@@ -697,10 +717,10 @@ def a_kak(u, validate=_validate_default):
     doubled_D = np.diag(np.concatenate([D, D.conj()]))
 
     if validate:
-        assert np.allclose(u1@u1.conj().T, np.eye(n)) # U1 is unitary
-        assert np.allclose(u2@u2.conj().T, np.eye(n)) # U2 is unitary
-        assert np.allclose(u1 @ np.diag(D_squared) @ u1.conj().T, delta) # horizontal KAK decomp
-        assert np.allclose(doubled_u1 @ doubled_D @ doubled_u2, u) # KAK decomp upper part
+        assert np.allclose(u1 @ u1.conj().T, np.eye(n))  # U1 is unitary
+        assert np.allclose(u2 @ u2.conj().T, np.eye(n))  # U2 is unitary
+        assert np.allclose(u1 @ np.diag(D_squared) @ u1.conj().T, delta)  # horizontal KAK decomp
+        assert np.allclose(doubled_u1 @ doubled_D @ doubled_u2, u)  # KAK decomp upper part
 
     return doubled_u1, doubled_D, doubled_u2
 
@@ -709,7 +729,7 @@ def bd_kak(o, validate=_validate_default):
     dim = o.shape[0]
     assert dim % 2 == 0
     n = dim // 2
-    assert np.allclose(o[:n, n:], 0.) and np.allclose(o[n:, :n], 0.)
+    assert np.allclose(o[:n, n:], 0.0) and np.allclose(o[n:, :n], 0.0)
 
     delta = o[:n, :n] @ o[n:, n:].T
     mu_squared, o1 = schur(delta)
@@ -726,16 +746,17 @@ def bd_kak(o, validate=_validate_default):
     doubled_mu = np.block([[mu, z], [z, mu.T]])
 
     if validate:
-        assert np.allclose(o1.imag, 0) # o1 is real
-        assert np.allclose(o1 @ o1.T, np.eye(n)) # o1 is unitary
+        assert np.allclose(o1.imag, 0)  # o1 is real
+        assert np.allclose(o1 @ o1.T, np.eye(n))  # o1 is unitary
         assert np.allclose(mu @ mu.T, np.eye(n))
-        assert np.allclose(mu.imag, 0.)
-        assert np.allclose(o2.imag, 0) # o2 is real
-        assert np.allclose(o2 @ o2.T, np.eye(n)) # U2 is unitary
-        assert np.allclose(o1 @ mu_squared @ o1.T, delta) # horizontal KAK decomp
-        assert np.allclose(doubled_o1 @ doubled_mu @ doubled_o2, o) # KAK decomp upper part
+        assert np.allclose(mu.imag, 0.0)
+        assert np.allclose(o2.imag, 0)  # o2 is real
+        assert np.allclose(o2 @ o2.T, np.eye(n))  # U2 is unitary
+        assert np.allclose(o1 @ mu_squared @ o1.T, delta)  # horizontal KAK decomp
+        assert np.allclose(doubled_o1 @ doubled_mu @ doubled_o2, o)  # KAK decomp upper part
 
     return doubled_o1, doubled_mu, doubled_o2
+
 
 def c_kak(s, validate=_validate_default):
     dim = s.shape[0]
@@ -744,7 +765,7 @@ def c_kak(s, validate=_validate_default):
     J = J_n(n)
 
     m = 2 * n
-    assert np.allclose(s[:m, m:], 0.) and np.allclose(s[m:, :m], 0.)
+    assert np.allclose(s[:m, m:], 0.0) and np.allclose(s[m:, :m], 0.0)
 
     delta = s[:m, :m] @ s[m:, m:].conj().T
     D_slash_squared, s1 = sympl_eig(delta, J, "vertical")
@@ -757,13 +778,15 @@ def c_kak(s, validate=_validate_default):
     doubled_D_slash = np.diag(np.concatenate([D_slash, D_slash.conj()]))
 
     if validate:
-        assert np.allclose(s1 @ s1.conj().T, np.eye(m)) # s1 is unitary
-        assert np.allclose(J @ s1.conj() @ J.T, s1) # s1 is symplectic
-        assert np.allclose(s2 @ s2.conj().T, np.eye(m)) # s2 is unitary
-        assert np.allclose(J @ s2.conj() @ J.T, s2) # s2 is symplectic
+        assert np.allclose(s1 @ s1.conj().T, np.eye(m))  # s1 is unitary
+        assert np.allclose(J @ s1.conj() @ J.T, s1)  # s1 is symplectic
+        assert np.allclose(s2 @ s2.conj().T, np.eye(m))  # s2 is unitary
+        assert np.allclose(J @ s2.conj() @ J.T, s2)  # s2 is symplectic
         assert np.allclose(D_slash_squared[:n], D_slash_squared[n:].conj())
 
-        assert np.allclose(s1 @ np.diag(D_slash_squared) @ s1.conj().T, delta) # horizontal KAK decomp
-        assert np.allclose(doubled_s1 @ doubled_D_slash @ doubled_s2, s) # KAK decomp upper part
+        assert np.allclose(
+            s1 @ np.diag(D_slash_squared) @ s1.conj().T, delta
+        )  # horizontal KAK decomp
+        assert np.allclose(doubled_s1 @ doubled_D_slash @ doubled_s2, s)  # KAK decomp upper part
 
     return doubled_s1, doubled_D_slash, doubled_s2
