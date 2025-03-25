@@ -49,7 +49,7 @@ for workflow_level in workflow_levels:
     c = Colors[workflow_level]
     data_label = Labels[workflow_level]
 
-    ax.plot(ns, times, marker=m, c=c, label=data_label, ls="")
+    ax.plot(ns, times, marker=m, c=c, label=data_label, ls="", zorder=-1)
 
 for workflow_level in workflow_levels:
     n_max = N_max[workflow_level]
@@ -66,7 +66,7 @@ for workflow_level in workflow_levels:
     end_fit = End_fit[workflow_level]
     start_fit = Start_fit[workflow_level]
     popt, pcov = curve_fit(f_log, np.log(ns[start_fit:]), np.log(times[start_fit:]))
-    ax.plot(cont_ns, f(cont_ns, *popt), ls = "--", c=c, label=f"$\\num{{{np.format_float_scientific(popt[1], precision=1)}}}\,n^{{{popt[0]:.2f}}}$")
+    ax.plot(cont_ns, f(cont_ns, *popt), ls = "--", c=c, label=f"$\\num{{{np.format_float_scientific(popt[1], precision=1)}}}\,n^{{{popt[0]:.2f}}}$", zorder=-2)
     #if end_fit > 0:
         #popt, pcov = curve_fit(f_log, np.log(ns[:end_fit]), np.log(times[:end_fit]))
         #ax.plot(cont_ns, f(cont_ns, *popt), ls = ":", c=c, label=f"$({popt[1]:.3f}n)^{{{popt[0]:.2f}}}$")

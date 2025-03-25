@@ -29,4 +29,16 @@ from .dense_cartan import (
     map_recursive_decomp_to_reducible_str,
     round_mult_recursive_decomp_str,
 )
-from .numerical_decompositions import ai_kak, aii_kak, aiii_kak, bdi_kak, sympl_eig
+from .numerical_decompositions import (
+    a_kak,
+    ai_kak,
+    aii_kak,
+    aiii_kak,
+    bd_kak,
+    bdi_kak,
+    diii_kak,
+    c_kak,
+    ci_kak,
+    cii_kak, # to do
+    sympl_eig,
+)

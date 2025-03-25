@@ -1,4 +1,6 @@
 pennylane
 tqdm
 jax
+matplotlib
+pytest
 
