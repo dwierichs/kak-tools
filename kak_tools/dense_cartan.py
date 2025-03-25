@@ -31,6 +31,7 @@ def bdi(u, p, q, is_horizontal=True, validate=True, **kwargs):
         return cossin(u, p=p, q=p, swap_sign=True, separate=True, **kwargs)[1]
     (k11, k12), theta, (k21, k22) = cossin(u, p=p, q=p, swap_sign=True, separate=True)
     if validate:
+        print(p, q)
         f = abs(p - q)
         r = min(p, q)
         k1 = np.block([[k11, np.zeros((p, q))], [np.zeros((q, p)), k12]])

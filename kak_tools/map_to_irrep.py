@@ -122,21 +122,6 @@ def _node_commutator(node1, node2, invol_type):
             a, b = b, a
         return (a, b, new_t, new_s)
 
-    """
-    elif invol_type == "AIII":
-        i, j, t1 = node1
-        k, l, t2 = node2
-        a, b = {i, j, k, l}.difference({i, j} & {k, l})
-        if a > b:
-            a, b = b, a
-        if t1 == t2:
-            assert t1 != "Z"
-            return (a, b, "Y")
-        if (t1 == "X" and t2 == "Y") or (t1 == "Y" and t2 == "X"):
-            if a != b:
-                return (a, b, "X")
-            return (a, b, 
-    """
     raise ValueError
 
 
@@ -160,6 +145,7 @@ def _node_commutator_sign_bdi(node1, node2):
     raise ValueError
 
 
+"""
 def _node_commutator_sign_diii(node1, node2):
     i, j, t1, s1 = node1
     k, l, t2, s2 = node2
@@ -189,6 +175,7 @@ def _node_commutator_sign_diii(node1, node2):
     if t1 == "B" and t2 == "A":
         return -1 * _node_commutator_sign_diii(node2, node1)
     raise ValueError
+"""
 
 
 def _node_commutator_sign(node1, node2, invol_type):
@@ -288,31 +275,8 @@ def map_coms(mapping, missing, missing_ops, n, invol_type):
 
     return mapping, [], []
 
-    """
-    for _ in range(n_epochs):
-        op_added = False
-        edges = set(hor_subgraph.edges())
-        for n1, n2 in edges.difference(checked_edges):
-            com_node = _node_commutator(n1, n2, invol_type)
-            if com_node not in hor_subgraph:
-                com_pw, _ = mapping[n1]._commutator(mapping[n2])
-                mapping[com_node] = com_pw
-                missing_ops.remove(com_pw)
-                hor_subgraph.add_node(com_node)
-                single_neighbours = set(hor_subgraph[n1]).symmetric_difference(set(hor_subgraph[n2]))
-                hor_subgraph.add_edges_from([(com_node, n) for n in single_neighbours])
-                op_added = True
-            checked_edges |= {(n1, n2), (n2, n1), (com_node, n1), (n1, com_node), (com_node, n2), (n2, com_node)} # TODO: Make this a graph
-        if not op_added:
-            break
-    """
-
-    return mapping, missing, missing_ops
-
 
 def map_choice(mapping, missing, missing_ops, n, invol_type):
-    # hor_nodes = set(hor_subgraph.nodes())
-    # node = next((0, i) for i in range(1, n) if (0, i) not in hor_nodes)
     node, node_idx = choose_generic_first_missing(missing, n, invol_type)
     ac_nodes = anticommuting_nodes(node, n, invol_type)
     for op_idx, op in enumerate(missing_ops):
@@ -326,9 +290,9 @@ def map_choice(mapping, missing, missing_ops, n, invol_type):
 
 
 sign_map = {
-    "X": {"X": 1.0, "Y": 1j, "Z": -1j},
-    "Y": {"X": -1j, "Y": 1.0, "Z": 1j},
-    "Z": {"X": 1j, "Y": -1j, "Z": 1.0},
+    "X": {"X": 1.0, "Y": -1j, "Z": 1j},
+    "Y": {"X": 1j, "Y": 1.0, "Z": -1j},
+    "Z": {"X": -1j, "Y": 1j, "Z": 1.0},
 }
 
 
@@ -363,6 +327,7 @@ def map_simple_to_irrep(ops, horizontal_ops=None, n=None, invol_type=None, invol
     assert all(isinstance(op, PauliWord) for op in ops)
     assert isinstance(n, int)
     assert invol_type in {"AI", "AII", "AIII", "BDI", "CI", "CII", "DIII"}
+    assert invol_type == "BDI"
     if invol_type in {"AII", "DIII"}:
         assert n % 2 == 0
     if invol_kwargs is None:

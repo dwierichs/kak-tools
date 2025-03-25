@@ -1,6 +1,8 @@
 pennylane
 tqdm
-jax
+jax==0.4.28
+jaxlib==0.4.28
 matplotlib
 pytest
+jupyter
 

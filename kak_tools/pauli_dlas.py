@@ -204,13 +204,13 @@ def lie_closure_pauli_words(generators, verbose=False, max_iterations=10000, ful
     assert all(isinstance(op, qml.pauli.PauliWord) for op in generators)
     epoch = 0
     old_length = 0  # dummy value
-    new_length = len(dla)
+    new_length = initial_length = len(dla)
 
     while (new_length > old_length) and (epoch < max_iterations):
         if verbose:
             print(f"epoch {epoch+1} of lie_closure, DLA size is {new_length}")
 
-        for pw1, pw2 in product(dla[:new_length], dla[old_length:]):
+        for pw1, pw2 in product(dla[:initial_length], dla[old_length:]):
             if pw1.commutes_with(pw2):
                 continue
             com = pw1._matmul(pw2)[0]
