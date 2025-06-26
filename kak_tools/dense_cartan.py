@@ -31,15 +31,16 @@ def bdi(u, p, q, is_horizontal=True, validate=True, **kwargs):
         return cossin(u, p=p, q=p, swap_sign=True, separate=True, **kwargs)[1]
     (k11, k12), theta, (k21, k22) = cossin(u, p=p, q=p, swap_sign=True, separate=True)
     if validate:
-        print(p, q)
-        f = abs(p - q)
         r = min(p, q)
+        s = p - r
+        t = q - r
         k1 = np.block([[k11, np.zeros((p, q))], [np.zeros((q, p)), k12]])
         a = np.block(
             [
-                [np.eye(f), np.zeros((f, r)), np.zeros((f, r))],
-                [np.zeros((r, f)), np.diag(np.cos(theta)), np.diag(np.sin(theta))],
-                [np.zeros((r, f)), np.diag(-np.sin(theta)), np.diag(np.cos(theta))],
+                [np.eye(s), np.zeros((s, r)), np.zeros((s, t)), np.zeros((s, r))],
+                [np.zeros((r, s)), np.diag(np.cos(theta)), np.zeros((r, t)), np.diag(np.sin(theta))],
+                [np.zeros((t, s)), np.zeros((t, r)), np.eye(t), np.zeros((t, r))],
+                [np.zeros((r, s)), np.diag(-np.sin(theta)), np.zeros((r, t)), np.diag(np.cos(theta))],
             ]
         )
         k2 = np.block([[k21, np.zeros((p, q))], [np.zeros((q, p)), k22]])
@@ -50,6 +51,7 @@ def bdi(u, p, q, is_horizontal=True, validate=True, **kwargs):
         k21 = np.roll(k21, q - p, axis=0)
 
     if validate:
+        f = abs(p-q)
         k1 = np.block([[k11, np.zeros((p, q))], [np.zeros((q, p)), k12]])
         a = np.block(
             [
@@ -75,15 +77,17 @@ def bdi(u, p, q, is_horizontal=True, validate=True, **kwargs):
     d11 = det(k11)
     d12 = det(k12)
     k11[:, 0] *= d11
-    k12[:, 0] *= d12
+    k12[:, q-min(p,q)] *= d12
     if is_horizontal:
         k21[0] *= d11
-        k22[0] *= d12
+        k22[q-min(p,q)] *= d12
         theta[0] *= d11 * d12
     else:
         d21 = det(k21)
+        d22 = det(k22)
+        assert np.isclose(d11 * d12 * d21 * d22, 1.0)
         k21[0] *= d21
-        k22[0] *= d11 * d12 * d21  # d22 must complement to 1
+        k22[q-min(p,q)] *= d22
         theta[0] *= d11 * d12
         if d11 * d21 < 0:
             theta[0] += np.pi
@@ -146,7 +150,7 @@ def recursive_bdi(U, n, num_iter=None, first_is_horizontal=True, validate=True, 
             if _type.startswith("a") or _n == 2:
                 # CSA element
                 new_ops.append((op, start, end, _type))
-                if _type == "a0":
+                if _type == "a0" and first_is_horizontal:
                     # Exploit horizontalness
                     break
                 continue
@@ -167,7 +171,7 @@ def recursive_bdi(U, n, num_iter=None, first_is_horizontal=True, validate=True, 
             decomposed_something = True
 
         _iter += 1
-        if return_all:
+        if return_all and first_is_horizontal:
             # Exploit horizontalness
             new_ops.extend(
                 (
@@ -182,12 +186,13 @@ def recursive_bdi(U, n, num_iter=None, first_is_horizontal=True, validate=True, 
 
     if return_all:
         return ops
-    current_ops.extend(
-        (
-            ((-op if _type.startswith("a") else op.T), start, end, _type)
-            for op, start, end, _type in current_ops[:-1][::-1]
+    if first_is_horizontal:
+        current_ops.extend(
+            (
+                ((-op if _type.startswith("a") else op.T), start, end, _type)
+                for op, start, end, _type in current_ops[:-1][::-1]
+            )
         )
-    )
     return current_ops
 
 

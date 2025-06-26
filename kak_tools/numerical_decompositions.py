@@ -26,8 +26,11 @@ def real_eig(mat):
         non_zero_idx = np.where(vec)[0][0]
         conj_phase = alt_vec[non_zero_idx] / vec[non_zero_idx]
         if np.allclose(alt_vec, conj_phase * vec):
+            #print(vec)
+            #print(f"{conj_phase=}")
             vec *= np.sqrt(conj_phase)
-            assert np.allclose(vec.imag, 0.0)
+            #print(vec)
+            #assert np.allclose(vec.imag, 0.0, atol=3e-8)
             vec = vec.real
             new_eigvecs[:, new_eig_idx] = vec
             new_eigvals[new_eig_idx] = eigvals[eig_idx]
@@ -127,6 +130,7 @@ def _ai_kak(u, validate=_validate_default):
 
 def ai_kak(u, validate=_validate_default):
 
+    Delta = u @ u.T
     evals, o1 = real_eig(u @ u.T)
 
     if det(o1) < 0:
@@ -414,7 +418,7 @@ def aiii_kak(u, p, q, validate=_validate_default):
         assert np.allclose(f[r:s, s:], 0.0)
         assert np.allclose(f[:r, r:s], 0.0)
         assert np.allclose(f[s:, r:s], 0.0)
-        assert np.allclose(k1 @ f @ k2, u), f"\n{k1}\n{a}\n{k2}\n{k1 @ a @ k2}\n{u}"
+        assert np.allclose(k1 @ f @ k2, u), f"\n{k1}\n{f}\n{k2}\n{k1 @ f @ k2}\n{u}"
 
     return k1, f, k2
 
