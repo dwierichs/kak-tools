@@ -485,7 +485,7 @@ def bdi_kak(o, p, q, validate=_validate_default):
         assert np.allclose(f[r:s, s:], 0.0)
         assert np.allclose(f[:r, r:s], 0.0)
         assert np.allclose(f[s:, r:s], 0.0)
-        assert np.allclose(k1 @ f @ k2, o), f"\n{k1}\n{a}\n{k2}\n{k1 @ a @ k2}\n{o}"
+        assert np.allclose(k1 @ f @ k2, o), f"\n{k1}\n{f}\n{k2}\n{k1 @ f @ k2}\n{o}"
         assert np.allclose(
             [det(k1[:p, :p]), det(k1[p:, p:]), det(k2[:p, :p]), det(k2[p:, p:])], 1.0
         )
