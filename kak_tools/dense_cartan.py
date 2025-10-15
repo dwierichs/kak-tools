@@ -344,15 +344,29 @@ def round_mult_recursive_decomp_str(recursive_decomp, time, n_so, tol=1e-8):
     out = np.eye(n_so)
     for mat, s, e, t in recursive_decomp:
         if t.startswith("a"):
-            if t == "a0":
-                if time is not None:
-                    mat = mat / time
+            if t == "a0" and time is not None:
+                mat = mat / time
             mat = round_angles_to_irreducible_mat(mat, s, e, n_so, tol)
         else:
             mat = round_mat_to_irreducible_mat(mat, s, e, n_so, tol)
 
         out @= mat
     return out
+
+
+def map_recursive_decomp_to_matrices(recursive_decomp, time, n_so, tol=1e-8):
+    matrices = []
+    for mat, s, e, t in recursive_decomp:
+        if t.startswith("a"):
+            if t == "a0" and time is not None:
+                mat = mat / time
+            mat = round_angles_to_irreducible_mat(mat, s, e, n_so, tol)
+        else:
+            mat = round_mat_to_irreducible_mat(mat, s, e, n_so, tol)
+
+        matrices.append(mat)
+
+    return matrices
 
 
 def map_recursive_decomp_to_reducible_str(recursive_decomp, mapping, time=None, tol=1e-8):

@@ -26,6 +26,7 @@ from .dense_cartan import (
     recursive_bdi,
     group_matrix_to_reducible,
     map_recursive_decomp_to_reducible,
+    map_recursive_decomp_to_matrices,
     map_recursive_decomp_to_reducible_str,
     round_mult_recursive_decomp_str,
 )
