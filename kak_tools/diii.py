@@ -1,3 +1,6 @@
+import scipy
+import numpy as np
+
 def diii(m):
     """Decompose a horizontal generator of the DIII Cartan decomposition in canonical form."""
     a, Q = scipy.linalg.schur(m)
@@ -32,6 +35,7 @@ def diii(m):
     # Reorder columns of Q (rows&columns of a) so that the pairs of blocks are arranged correctly.
     vec = np.round(np.diag(a, 1)[::2], 10)
     ids = np.argsort(vec)
+    n = len(ids)
     ids = list(ids[: n // 2 + n % 2]) + list(reversed(ids[n // 2 + n % 2 :]))
     ids = np.array([2 * i + off for i in ids for off in [0, 1]])
 
