@@ -41,7 +41,7 @@ def real_eig(mat):
             eigvecs -= np.outer(vec, vec.conj() @ eigvecs)
         else:
             overlap = np.dot(vec, vec)
-            new_vec = (-0.5 * np.angle(overlap)) * vec
+            new_vec = np.exp(-0.5j * np.angle(overlap)) * vec
             vec1 = new_vec.real / norm(new_vec.real)
             vec2 = new_vec.imag / norm(new_vec.imag)
             new_eigvecs[:, new_eig_idx] = vec1
