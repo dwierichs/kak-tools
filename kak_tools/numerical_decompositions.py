@@ -492,37 +492,36 @@ def bdi_kak(o, p, q, validate=_validate_default):
 
     return k1, f, k2
 
+def single_block(matrix, i):
+    #Find single blocks that aren't part of an +/- I2 matrix
+    n = matrix.shape[0]
+    first = (i == 0)
+    last = (i == n-1)
+    #Check that adjacent elements are zero
+    right = last or np.isclose(matrix[i+1,i], 0)
+    up = first or np.isclose(matrix[i,i-1], 0)
+    #Check that diagonally adjacent elements are not the same
+    copy = None
+    if first:
+        copy = np.isclose(matrix[i,i], matrix[i+1, i+1])
+    elif last:
+        copy = np.isclose(matrix[i,i], matrix[i-1, i-1])
+    else:
+        copy = np.isclose(matrix[i,i], matrix[i+1, i+1]) or np.isclose(matrix[i,i], matrix[i-1, i-1])
+    return right and up and not copy
 
 def schur_sqrt(u):
+    #Find the square root of a Schur matrix, still in Schur form
     dim = u.shape[0]
-    if dim % 2 == 1:
-        idx = np.where(np.isclose(np.diag(u), 1.0))[0][0]
-        sliced_u = np.block(
-            [[u[:idx, :idx], u[:idx, idx + 1 :]], [u[idx + 1 :, :idx], u[idx + 1 :, idx + 1 :]]]
-        )
-        sl_sqrt = schur_sqrt(sliced_u)
-        sqrt = np.block(
-            [
-                [sl_sqrt[:idx, :idx], np.zeros((idx, 1)), sl_sqrt[:idx, idx:]],
-                [np.zeros((1, idx)), 1.0, np.zeros((1, dim - idx - 1))],
-                [sl_sqrt[idx:, :idx], np.zeros((dim - idx - 1, 1)), sl_sqrt[idx:, idx:]],
-            ]
-        )
-        return sqrt
+    blocks = [i for i in range(dim) if not single_block(u, i)][::2]
     sqrt = np.copy(u)
-    iY = np.array([[0, 1], [-1, 0]])
-    for i in range(0, dim - 1, 2):
-        if np.isclose(u[i, i + 1], 0.0):
-            if u[i, i] < 0:
-                sqrt[i : i + 2, i : i + 2] = iY
-        else:
-            theta = np.arctan2(u[i, i + 1], u[i, i]) / 2
-            sqrt[i : i + 2, i : i + 2] = np.array(
-                [[np.cos(theta), np.sin(theta)], [-np.sin(theta), np.cos(theta)]]
-            )
+    for b, i in enumerate(blocks):
+        theta = np.arctan2(u[i, i + 1], u[i, i]) / 2
+        sqrt[i:i+2, i:i+2] = np.array([[np.cos(theta),  np.sin(theta)],
+                                      [-np.sin(theta), np.cos(theta)]])
 
+    assert np.allclose(sqrt @ sqrt, u)
     return sqrt
-
 
 def diii_kak(o, validate=_validate_default):
     dim = o.shape[0]
@@ -728,7 +727,6 @@ def a_kak(u, validate=_validate_default):
 
     return doubled_u1, doubled_D, doubled_u2
 
-
 def bd_kak(o, validate=_validate_default):
     dim = o.shape[0]
     assert dim % 2 == 0
@@ -736,12 +734,22 @@ def bd_kak(o, validate=_validate_default):
     assert np.allclose(o[:n, n:], 0.0) and np.allclose(o[n:, :n], 0.0)
 
     delta = o[:n, :n] @ o[n:, n:].T
-    mu_squared, o1 = schur(delta)
-    if det(o1) < 0:
-        o1[:, :2] = np.roll(o1[:, :2], shift=1, axis=1)
-        mu_squared[:, :2] = np.roll(mu_squared[:, :2], shift=1, axis=1)
-        mu_squared[:2] = np.roll(mu_squared[:2], shift=1, axis=0)
-        assert det(o1) > 0
+    
+    mu_squared, o1, _ = schur(delta, output = 'real', sort = lambda x: np.isclose(x, -1.0))
+    
+    single_blocks = [i for i in range(n) if single_block(mu_squared, i)]
+    for i in range(0, len(single_blocks) - 1, 2):
+        roll_ids = list(range(single_blocks[i], single_blocks[i+1] + 1))
+        o1[:, roll_ids] = np.roll(o1[:, roll_ids], shift=1, axis=1)
+        mu_squared[:, roll_ids] = np.roll(mu_squared[:, roll_ids], shift=1, axis=1)
+        mu_squared[roll_ids] = np.roll(mu_squared[roll_ids], shift=1, axis=0)
+    
+    if not np.isclose(det(o1), 1.0):
+        i = next(i for i in range(n) if not single_block(mu_squared, i))
+        o1[:, [i, i+1]] = o1[:, [i+1, i]]
+        mu_squared[[i, i+1]] = mu_squared[[i+1, i]]
+        mu_squared[:, [i, i+1]] = mu_squared[:, [i+1, i]]
+
     mu = schur_sqrt(mu_squared)
     o2 = mu @ o1.conj().T @ o[n:, n:]
     z = np.zeros_like(o1)
@@ -760,7 +768,6 @@ def bd_kak(o, validate=_validate_default):
         assert np.allclose(doubled_o1 @ doubled_mu @ doubled_o2, o)  # KAK decomp upper part
 
     return doubled_o1, doubled_mu, doubled_o2
-
 
 def c_kak(s, validate=_validate_default):
     dim = s.shape[0]

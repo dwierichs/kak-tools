@@ -14,6 +14,7 @@ from kak_tools import (
     cii_kak,
 )
 
+O_test = np.loadtxt("../tests/bd_test_matrix.txt")
 
 def J_n(n):
     eye = np.eye(n)
@@ -295,6 +296,15 @@ class TestNumericalDecompositions:
     def test_bd_kak(self, n, validate):
         """Test the numerical KAK decomposition of type BD."""
         o = make_doubled_orthogonal(n)
+        o1, mu, o2 = bd_kak(o, validate=validate)
+        assert np.allclose(o1 @ mu @ o2, o)
+        assert_repeat_special_orthogonal(o1)
+        assert_skew_repeat_schur(mu)
+        assert_repeat_special_orthogonal(o2)
+
+    def test_bd_kak_O(self, n, validate):
+        """Test the numerical KAK decomposition of type BD for prior minimal nonworking case."""
+        o = O_test
         o1, mu, o2 = bd_kak(o, validate=validate)
         assert np.allclose(o1 @ mu @ o2, o)
         assert_repeat_special_orthogonal(o1)
