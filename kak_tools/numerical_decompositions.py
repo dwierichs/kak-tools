@@ -514,7 +514,7 @@ def single_block(matrix, i):
     return right_zeroed and up_zeroed and not id_block
 
 def schur_sqrt(u):
-    #Find the square root of a Schur matrix, still in Schur form
+    """Find the square root of a Schur matrix, still in Schur form."""
     dim = u.shape[0]
     blocks = [i for i in range(dim) if not single_block(u, i)][::2]
     sqrt = np.copy(u)
