@@ -493,6 +493,9 @@ def bdi_kak(o, p, q, validate=_validate_default):
     return k1, f, k2
 
 def single_block(matrix, i):
+    """This function identifies 1x1 blocks by checking that adjacent entries in the matrix (right, up)
+    are zero and that the diagonally adjacent entries are not the same (because if they were they would
+    be part of a valid 2x2 block ±𝟏 )."""
     #Find single blocks that aren't part of an +/- I2 matrix
     n = matrix.shape[0]
     first = (i == 0)
