@@ -501,17 +501,17 @@ def single_block(matrix, i):
     first = (i == 0)
     last = (i == n-1)
     #Check that adjacent elements are zero
-    right = last or np.isclose(matrix[i+1,i], 0)
-    up = first or np.isclose(matrix[i,i-1], 0)
+    right_zeroed = last or np.isclose(matrix[i+1,i], 0)
+    up_zeroed = first or np.isclose(matrix[i,i-1], 0)
     #Check that diagonally adjacent elements are not the same
-    copy = None
+    id_block = False
     if first:
-        copy = np.isclose(matrix[i,i], matrix[i+1, i+1])
+        id_block = np.isclose(matrix[i,i], matrix[i+1, i+1])
     elif last:
-        copy = np.isclose(matrix[i,i], matrix[i-1, i-1])
+        id_block = np.isclose(matrix[i,i], matrix[i-1, i-1])
     else:
-        copy = np.isclose(matrix[i,i], matrix[i+1, i+1]) or np.isclose(matrix[i,i], matrix[i-1, i-1])
-    return right and up and not copy
+        id_block = np.isclose(matrix[i,i], matrix[i+1, i+1]) or np.isclose(matrix[i,i], matrix[i-1, i-1])
+    return right_zeroed and up_zeroed and not id_block
 
 def schur_sqrt(u):
     #Find the square root of a Schur matrix, still in Schur form
