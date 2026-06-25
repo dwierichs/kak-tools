@@ -14,7 +14,6 @@ from kak_tools import (
     cii_kak,
 )
 
-
 def J_n(n):
     eye = np.eye(n)
     z = np.zeros((n, n))
@@ -245,8 +244,9 @@ def assert_sympl_cossin(x, p, q):
     assert_cossin(x[:n, :n], p, q)
     assert_cossin(x[n:, n:], p, q)
 
+test_sizes = [2, 3, 4, 7, 10, 25, 40]
 
-@pytest.mark.parametrize("n", [2, 3, 4, 7, 10, 25, 40])
+@pytest.mark.parametrize("n", test_sizes)
 @pytest.mark.parametrize("validate", [True, False])
 class TestNumericalDecompositions:
 
@@ -297,6 +297,18 @@ class TestNumericalDecompositions:
         o = make_doubled_orthogonal(n)
         o1, mu, o2 = bd_kak(o, validate=validate)
         assert np.allclose(o1 @ mu @ o2, o)
+        assert_repeat_special_orthogonal(o1)
+        assert_skew_repeat_schur(mu)
+        assert_repeat_special_orthogonal(o2)
+
+    def test_bd_kak_edge_case(self, n, validate, reference_matrix_bd):
+        """Test the numerical KAK decomposition of type BD for an edge case causing subblocks
+        of size 1 in the Schur decomposition call."""
+        if n != test_sizes[0]:
+            reason = "This test is not parametrized by n, skip it for n other than the first."
+            pytest.skip(reason=reason)
+        o1, mu, o2 = bd_kak(reference_matrix_bd, validate=validate)
+        assert np.allclose(o1 @ mu @ o2, reference_matrix_bd)
         assert_repeat_special_orthogonal(o1)
         assert_skew_repeat_schur(mu)
         assert_repeat_special_orthogonal(o2)
