@@ -313,6 +313,18 @@ class TestNumericalDecompositions:
         assert_skew_repeat_schur(mu)
         assert_repeat_special_orthogonal(o2)
 
+    def test_bd_kak_edge_case2(self, n, validate, reference_matrix_bd2):
+        """Test the numerical KAK decomposition of type BD for an edge case causing an odd number of 
+        subblocks of size 1 in the Schur decomposition call."""
+        if n != test_sizes[0]:
+            reason = "This test is not parametrized by n, skip it for n other than the first."
+            pytest.skip(reason=reason)
+        o1, mu, o2 = bd_kak(reference_matrix_bd2, validate=validate)
+        assert np.allclose(o1 @ mu @ o2, reference_matrix_bd2)
+        assert_repeat_special_orthogonal(o1)
+        assert_skew_repeat_schur(mu)
+        assert_repeat_special_orthogonal(o2)
+
     @pytest.mark.parametrize("p_frac", [0.5, 0.2, 0.1])
     @pytest.mark.parametrize("switch_p_and_q", [False, True])
     def test_bdi_kak(self, n, validate, p_frac, switch_p_and_q):
