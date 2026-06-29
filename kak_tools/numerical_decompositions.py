@@ -501,11 +501,7 @@ def single_block(matrix, i):
     to construct 2×2 rotation blocks; an odd-length run leaves one entry without a partner. This
     function identifies the unpaired +1 by flagging the first element of every odd-length
     run of consecutive +1s on the diagonal so that they can be handled separately.
-<<<<<<< HEAD
-
-=======
     
->>>>>>> 3fe1a36 (Added unit test for new bd decomposition bug)
     Args:
         matrix (np.ndarray): A real square Schur matrix.
         i (int): Index of the diagonal entry to test.
