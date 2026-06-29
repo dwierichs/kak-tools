@@ -503,8 +503,7 @@ def single_block(matrix, i):
     run of consecutive +1s on the diagonal.
 
     Args:
-        matrix (np.ndarray): A real square Schur matrix whose diagonal entries are ±1,
-            with all −1 entries sorted to the front.
+        matrix (np.ndarray): A real square Schur matrix.
         i (int): Index of the diagonal entry to test.
 
     Returns:
