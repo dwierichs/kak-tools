@@ -496,11 +496,11 @@ def single_block(matrix, i):
     """
     Determine whether index i is the start of an odd-length run of +1 diagonal entries.
 
-    In the Schur matrix produced by the BD decomposition, diagonal entries are either
-    −1 (sorted to the front) or +1. Any run of +1s must be handled in pairs to construct
-    2×2 rotation blocks; an odd-length run leaves one entry without a partner. This
+    In the Schur matrix produced by the BD decomposition all lone diagonal entries are either
+    ±1, where the -1s will be sorted to the front in pairs. Any run of +1s must be paired up
+    to construct 2×2 rotation blocks; an odd-length run leaves one entry without a partner. This
     function identifies the unpaired +1 by flagging the first element of every odd-length
-    run of consecutive +1s on the diagonal.
+    run of consecutive +1s on the diagonal so that they can be handled separately.
 
     Args:
         matrix (np.ndarray): A real square Schur matrix.
