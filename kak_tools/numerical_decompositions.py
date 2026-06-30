@@ -493,25 +493,37 @@ def bdi_kak(o, p, q, validate=_validate_default):
     return k1, f, k2
 
 def single_block(matrix, i):
-    """This function identifies 1x1 blocks by checking that adjacent entries in the matrix (right, up)
-    are zero and that the diagonally adjacent entries are not the same (because if they were they would
-    be part of a valid 2x2 block ±𝟏 )."""
-    #Find single blocks that aren't part of an +/- I2 matrix
+    """
+    Determine whether index i is the start of an odd-length run of +1 diagonal entries.
+
+    In the Schur matrix produced by the BD decomposition all lone diagonal entries are either
+    ±1, where the -1s will be sorted to the front in pairs. Any run of +1s must be paired up
+    to construct 2×2 rotation blocks; an odd-length run leaves one entry without a partner. This
+    function identifies the unpaired +1 by flagging the first element of every odd-length
+    run of consecutive +1s on the diagonal so that they can be handled separately.
+    
+    Args:
+        matrix (np.ndarray): A real square Schur matrix.
+        i (int): Index of the diagonal entry to test.
+
+    Returns:
+        bool: True if i is the first element of an odd-length run of +1 diagonal entries,
+            False otherwise.
+    """
     n = matrix.shape[0]
-    first = (i == 0)
-    last = (i == n-1)
-    #Check that adjacent elements are zero
-    right_zeroed = last or np.isclose(matrix[i+1,i], 0)
-    up_zeroed = first or np.isclose(matrix[i,i-1], 0)
-    #Check that diagonally adjacent elements are not the same
-    id_block = False
-    if first:
-        id_block = np.isclose(matrix[i,i], matrix[i+1, i+1])
-    elif last:
-        id_block = np.isclose(matrix[i,i], matrix[i-1, i-1])
-    else:
-        id_block = np.isclose(matrix[i,i], matrix[i+1, i+1]) or np.isclose(matrix[i,i], matrix[i-1, i-1])
-    return right_zeroed and up_zeroed and not id_block
+    is_last = (i == n - 1)
+
+    if not np.isclose(matrix[i,i], 1.0):
+        return False
+
+    if np.isclose(matrix[i, i], matrix[i - 1, i - 1]):
+        return False
+
+    len_block = 1
+    while(i + len_block < n and np.isclose(matrix[i, i], matrix[i + len_block, i + len_block])):
+        len_block += 1
+        
+    return len_block % 2 == 1
 
 def schur_sqrt(u):
     """Find the square root of a Schur matrix, still in Schur form."""
